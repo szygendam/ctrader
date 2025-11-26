@@ -1,3 +1,16 @@
+package com.punanito.ctraderbridge.controller;
+
+import com.punanito.ctraderbridge.model.AuthRequest;
+import com.punanito.ctraderbridge.service.CTraderAuthService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+
 @RestController
 @RequestMapping("/auth")
 public class AuthController {
@@ -22,5 +35,13 @@ public class AuthController {
         return ResponseEntity.ok().build();
     }
 
-    // Stary endpoint '/complete' jeśli nadal potrzebny można zostawić
+    @PostMapping("/application")
+    public ResponseEntity<Void> authApplication(@RequestBody AuthRequest request) {
+        logger.info("Received auth application request: client_id={}, client_secret={}", request.getClient_id(), request.getClient_secret());
+        authService.authApplication(
+                request.getClient_id(),
+                request.getClient_secret()
+        );
+        return ResponseEntity.ok().build();
+    }
 }

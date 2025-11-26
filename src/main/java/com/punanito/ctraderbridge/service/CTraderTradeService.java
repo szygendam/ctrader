@@ -11,6 +11,7 @@ import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
 
+import java.nio.file.AccessDeniedException;
 import java.time.Instant;
 import java.util.Map;
 
@@ -70,13 +71,13 @@ public class CTraderTradeService {
 
     private void notifyN8nAccessDenied() {
         logger.info("Notifying n8n about ACCESS_DENIED");
+        Map<String, String> body = new java.util.HashMap<>();
+        body.put("event", "ACCESS_DENIED");
+        body.put("timestamp", Instant.now().toString());
         webClient.post()
             .uri(n8nAccessDeniedWebhookUrl)
             .contentType(MediaType.APPLICATION_JSON)
-            .bodyValue(Map.of(
-                "event", "ACCESS_DENIED",
-                "timestamp", Instant.now().toString()
-            ))
+            .bodyValue(body)
             .retrieve()
             .bodyToMono(Void.class)
             .subscribe(

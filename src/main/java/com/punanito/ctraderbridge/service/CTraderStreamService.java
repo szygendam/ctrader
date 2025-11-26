@@ -1,9 +1,9 @@
 package com.punanito.ctraderbridge.service;
 
 import com.punanito.ctraderbridge.config.CTraderConfig;
-import com.xtrader.protocol.openapi.v2.ProtoMessageOuterClass.ProtoMessage;
-import com.xtrader.protocol.openapi.v2.ProtoOASpotEventOuterClass.ProtoOASpotEvent;
-import com.xtrader.protocol.openapi.v2.ProtoOAPayloadTypeOuterClass.ProtoOAPayloadType;
+import com.xtrader.protocol.proto.commons.ProtoMessage;
+import com.xtrader.protocol.openapi.v2.ProtoOASpotEvent;
+import com.xtrader.protocol.openapi.v2.model.ProtoOAPayloadType;
 import io.netty.bootstrap.Bootstrap;
 import io.netty.channel.*;
 import io.netty.channel.nio.NioEventLoopGroup;
@@ -92,9 +92,9 @@ public class CTraderStreamService {
     private class CTraderStreamHandler extends SimpleChannelInboundHandler<ProtoMessage> {
         @Override
         protected void channelRead0(ChannelHandlerContext ctx, ProtoMessage msg) throws Exception {
-            if (msg.getPayloadType() == ProtoOAPayloadType.ProtoOASpotEvent) {
+            if (ProtoOAPayloadType.PROTO_OA_SPOT_EVENT.equals(msg.getPayloadType() )) {
                 ProtoOASpotEvent event = ProtoOASpotEvent.parseFrom(msg.getPayload());
-                if (event.getSymbolIdList().contains(subscribedSymbolId)) {
+                if (subscribedSymbolId == event.getSymbolId()) {
                     long rawBid = event.getBid();
                     long rawAsk = event.getAsk();
                     double bid = rawBid / 100000.0;
