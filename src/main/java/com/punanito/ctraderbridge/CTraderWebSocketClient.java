@@ -51,6 +51,7 @@ public class CTraderWebSocketClient {
     long accountId;
     private final Map<Long, ProtoOASymbol> symbolDetails = new HashMap<>();
     private final Map<String, Long> symbolByName = new HashMap<>();
+    private final Map<Long, String> symbolById = new HashMap<>();
     private double accountBalance = 0.0;
     private double lastBid = 0;
     private double lastAsk = 0;
@@ -258,6 +259,7 @@ public class CTraderWebSocketClient {
 
                 for (ProtoOALightSymbol symbol : res.getSymbolList()) {
                     symbolByName.put(symbol.getSymbolName(), symbol.getSymbolId());
+                    symbolById.put(symbol.getSymbolId(),symbol.getSymbolName());
                 }
                 System.out.println("Załadowano " + symbolByName.size() + " symboli");
 
@@ -312,14 +314,14 @@ public class CTraderWebSocketClient {
 
                     double entry = lastAsk;
                     double sl = entry - (stopLossPips / Math.pow(10, symbol.getDigits()));
-                    double tp = entry + (stopLossPips / Math.pow(10, symbol.getDigits())); // RR 1:1 ✅
+                    double tp = entry + (stopLossPips / Math.pow(10, symbol.getDigits())); // RR 1:1
 
                     long volume = calculateDynamicVolume(symbol);
 
-                    System.out.println("AUTO BUY " + symbolByName.get(symbolId));
+                    System.out.println("AUTO BUY " + symbolById.get(symbolId));
                     System.out.println("Entry=" + entry + " SL=" + sl + " TP=" + tp + " Vol=" + volume);
 
-                    sendMarketOrder(symbolId, true, volume);
+//                    sendMarketOrder(symbolId, true, volume);
 
                     // Żeby nie spamowało zleceń:
                     unsubscribeFromSpots(symbolId);
@@ -390,7 +392,7 @@ public class CTraderWebSocketClient {
 
     private long calculateDynamicVolume(
             ProtoOASymbol symbol) {
-        double riskPercent = 1.0;
+        double riskPercent = 0.1;
         double stopLossPips = 20;
         double riskAmount = accountBalance * (riskPercent / 100.0);
 
