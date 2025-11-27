@@ -2,11 +2,19 @@ package com.punanito.ctraderbridge;
 
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.xtrader.protocol.openapi.v2.ProtoOAAccountAuthReq;
+import com.xtrader.protocol.openapi.v2.ProtoOAAmendPositionSLTPReq;
 import com.xtrader.protocol.openapi.v2.ProtoOAApplicationAuthReq;
+import com.xtrader.protocol.openapi.v2.ProtoOAExecutionEvent;
 import com.xtrader.protocol.openapi.v2.ProtoOAGetAccountListByAccessTokenReq;
 import com.xtrader.protocol.openapi.v2.ProtoOAGetAccountListByAccessTokenRes;
+import com.xtrader.protocol.openapi.v2.ProtoOANewOrderReq;
+import com.xtrader.protocol.openapi.v2.ProtoOAOrderDetailsReq;
 import com.xtrader.protocol.openapi.v2.ProtoOASpotEvent;
+import com.xtrader.protocol.openapi.v2.ProtoOASubscribeSpotsReq;
+import com.xtrader.protocol.openapi.v2.model.ProtoOAOrder;
+import com.xtrader.protocol.openapi.v2.model.ProtoOAOrderType;
 import com.xtrader.protocol.openapi.v2.model.ProtoOAPayloadType;
+import com.xtrader.protocol.openapi.v2.model.ProtoOATradeSide;
 import com.xtrader.protocol.proto.commons.ProtoMessage;
 
 import java.net.URI;
@@ -106,6 +114,48 @@ public class CTraderWebSocketClient {
         webSocket.sendBinary(ByteBuffer.wrap(message.toByteArray()), true);
     }
 
+    private void subscribeToTicks(long symbolId) {
+
+        ProtoOASubscribeSpotsReq req = ProtoOASubscribeSpotsReq.newBuilder()
+                .setCtidTraderAccountId(accountId)
+                .addSymbolId(symbolId)
+                .build();
+
+        send(req, ProtoOAPayloadType.PROTO_OA_SUBSCRIBE_SPOTS_REQ_VALUE);
+    }
+
+
+    private void sendMarketOrder(long symbolId, boolean isBuy) {
+
+        long volume = 1; // 1 lot (zależnie od brokera)
+
+        ProtoOANewOrderReq req = ProtoOANewOrderReq.newBuilder()
+                .setCtidTraderAccountId(accountId)
+                .setSymbolId(symbolId)
+                .setOrderType(ProtoOAOrderType.MARKET)
+                .setTradeSide(isBuy
+                        ? ProtoOATradeSide.BUY
+                        : ProtoOATradeSide.SELL)
+                .setVolume(volume)
+                .build();
+
+        send(req, ProtoOAPayloadType.PROTO_OA_NEW_ORDER_REQ_VALUE);
+    }
+
+    private void setStopLossAndTakeProfit(long positionId, double stopLoss, double takeProfit) {
+
+        ProtoOAAmendPositionSLTPReq req = ProtoOAAmendPositionSLTPReq.newBuilder()
+                .setCtidTraderAccountId(accountId)
+                .setPositionId(positionId)
+                .setStopLoss(stopLoss)
+                .setTakeProfit(takeProfit)
+                .build();
+
+        send(req, ProtoOAPayloadType.PROTO_OA_AMEND_POSITION_SLTP_REQ_VALUE);
+    }
+
+
+
     // 📥 Odbieranie wiadomości
     private void handleMessage(ProtoMessage message) throws InvalidProtocolBufferException {
 
@@ -131,6 +181,11 @@ public class CTraderWebSocketClient {
             case ProtoOAPayloadType.PROTO_OA_ACCOUNT_AUTH_RES_VALUE: {
                 System.out.println("Konto autoryzowane ");
                 System.out.println("Gotowy do subskrypcji i nasłuchiwania danych...");
+
+                // np. EURUSD
+                long EURUSD_SYMBOL_ID = 1; // <- zmień na właściwy symbol z Twojego serwera
+
+//                subscribeToTicks(EURUSD_SYMBOL_ID); //TODO
             }
             break;
 
@@ -139,7 +194,35 @@ public class CTraderWebSocketClient {
                 ProtoOASpotEvent event =
                         ProtoOASpotEvent.parseFrom(message.getPayload());
 
-                System.out.println("PRICE: " + event.getBid());
+                System.out.println(
+                        "TICK | symbolId=" + event.getSymbolId()
+                                + " BID PRICE=" + event.getBid()
+                                + " ASK=" + event.getAsk()
+                );
+            }
+            break;
+
+            case ProtoOAPayloadType.PROTO_OA_EXECUTION_EVENT_VALUE: {
+                ProtoOAExecutionEvent event =
+                        ProtoOAExecutionEvent.parseFrom(message.getPayload());
+
+                System.out.println("EXECUTION: " + event.getExecutionType());
+                if (event.hasOrder()) {
+                    System.out.println("ORDER ID: " + event.getOrder().getOrderId());
+                }
+                if (event.hasPosition()) {
+                    System.out.println("POSITION ID: " + event.getPosition().getPositionId());
+                    long positionId = event.getPosition().getPositionId();
+                    double openPrice = event.getPosition().getPrice();
+
+                    System.out.println("Position opened: " + positionId + " price: " + openPrice);
+
+                    // przykładowe SL/TP (dla BUY)
+                    double sl = openPrice - 0.0020;  // 20 pips
+                    double tp = openPrice + 0.0040;  // 40 pips
+
+                    setStopLossAndTakeProfit(positionId, sl, tp);
+                }
             }
             break;
 
