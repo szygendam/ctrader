@@ -21,8 +21,11 @@ import com.xtrader.protocol.openapi.v2.model.ProtoOAOrderType;
 import com.xtrader.protocol.openapi.v2.model.ProtoOAPayloadType;
 import com.xtrader.protocol.openapi.v2.model.ProtoOASymbol;
 import com.xtrader.protocol.openapi.v2.model.ProtoOATradeSide;
+import com.xtrader.protocol.proto.commons.ProtoHeartbeatEvent;
 import com.xtrader.protocol.proto.commons.ProtoMessage;
+import com.xtrader.protocol.proto.commons.model.ProtoPayloadType;
 
+import javax.annotation.PreDestroy;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.WebSocket;
@@ -31,6 +34,9 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CompletionStage;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 
 //@Singleton
 public class CTraderWebSocketClient {
@@ -46,6 +52,7 @@ public class CTraderWebSocketClient {
     private double accountBalance = 0.0;
     private double lastBid = 0;
     private double lastAsk = 0;
+    private ScheduledExecutorService heartbeatScheduler;
 
 
 
@@ -64,6 +71,7 @@ public class CTraderWebSocketClient {
 
                         sendApplicationAuth();
                         sendSymbolList();
+                        startHeartbeat();
                         WebSocket.Listener.super.onOpen(webSocket);
                     }
 
@@ -339,6 +347,28 @@ public class CTraderWebSocketClient {
             }
         }
     }
+
+
+    public void startHeartbeat() {
+        heartbeatScheduler = Executors.newSingleThreadScheduledExecutor();
+        heartbeatScheduler.scheduleAtFixedRate(() -> {
+            try {
+                ProtoHeartbeatEvent hb = ProtoHeartbeatEvent.newBuilder().build();
+                send(hb, ProtoPayloadType.HEARTBEAT_EVENT_VALUE);
+                System.out.println(">>> heartbeat sent");
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }, 10, 10, TimeUnit.SECONDS);
+    }
+
+    @PreDestroy
+    public void stopHeartbeat() {
+        if (heartbeatScheduler != null) {
+            heartbeatScheduler.shutdownNow();
+        }
+    }
+
 
     private static double round(double price, int digits) {
         double pow = Math.pow(10, digits);
