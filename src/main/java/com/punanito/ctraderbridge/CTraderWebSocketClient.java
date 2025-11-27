@@ -24,6 +24,8 @@ import com.xtrader.protocol.openapi.v2.model.ProtoOATradeSide;
 import com.xtrader.protocol.proto.commons.ProtoHeartbeatEvent;
 import com.xtrader.protocol.proto.commons.ProtoMessage;
 import com.xtrader.protocol.proto.commons.model.ProtoPayloadType;
+import org.apache.logging.log4j.util.Strings;
+import org.springframework.stereotype.Component;
 
 import javax.annotation.PreDestroy;
 import java.net.URI;
@@ -38,12 +40,12 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
-//@Singleton
+@Component
 public class CTraderWebSocketClient {
 
-    private static final String ACCESS_TOKEN = "TWOJ_ACCESS_TOKEN";
-    private static final String CLIENT_ID = "TWOJ_CLIENT_ID";
-    private static final String CLIENT_SECRET = "TWOJ_CLIENT_SECRET";
+    private static String ACCESS_TOKEN = Strings.EMPTY;
+    private static String CLIENT_ID = Strings.EMPTY;
+    private static String CLIENT_SECRET = Strings.EMPTY;
 
     WebSocket webSocket;
     long accountId;
@@ -56,7 +58,10 @@ public class CTraderWebSocketClient {
 
 
 
-    public void connect() {
+    public void connect(String clientId, String clientSecret, String accessToken) {
+        CLIENT_ID = clientId;
+        CLIENT_SECRET = clientSecret;
+        ACCESS_TOKEN = accessToken;
 
         HttpClient.newHttpClient()
                 .newWebSocketBuilder()
@@ -128,7 +133,7 @@ public class CTraderWebSocketClient {
 
     //  Pobierz listę kont
     private void sendGetAccountList() {
-
+        System.out.println("sendGetAccountList ");
         ProtoOAGetAccountListByAccessTokenReq req =
                 ProtoOAGetAccountListByAccessTokenReq.newBuilder()
                         .setAccessToken(ACCESS_TOKEN)
@@ -139,7 +144,7 @@ public class CTraderWebSocketClient {
 
     //  Autoryzuj konkretne konto
     private void sendAccountAuth() {
-
+        System.out.println("sendAccountAuth ");
         ProtoOAAccountAuthReq req = ProtoOAAccountAuthReq.newBuilder()
                 .setCtidTraderAccountId(accountId)
                 .setAccessToken(ACCESS_TOKEN)
@@ -161,7 +166,7 @@ public class CTraderWebSocketClient {
     }
 
     private void subscribeToTicks(long symbolId) {
-
+        System.out.println("subscribeToTicks ");
         ProtoOASubscribeSpotsReq req = ProtoOASubscribeSpotsReq.newBuilder()
                 .setCtidTraderAccountId(accountId)
                 .addSymbolId(symbolId)
@@ -171,8 +176,19 @@ public class CTraderWebSocketClient {
     }
 
 
-    private void sendMarketOrder(long symbolId, boolean isBuy, long volume) {
+    private void unsubscribeFromSpots(long symbolId) {
+        System.out.println("unsubscribeFromSpots ");
+        ProtoOAUnsubscribeSpotsReq req = ProtoOAUnsubscribeSpotsReq.newBuilder()
+                .setCtidTraderAccountId(accountId)
+                .addSymbolId(symbolId)
+                .build();
 
+        send(req, ProtoOAPayloadType.PROTO_OA_UNSUBSCRIBE_SPOTS_REQ_VALUE);
+    }
+
+
+    private void sendMarketOrder(long symbolId, boolean isBuy, long volume) {
+        System.out.println("sendMarketOrder ");
 
         ProtoOANewOrderReq req = ProtoOANewOrderReq.newBuilder()
                 .setCtidTraderAccountId(accountId)
@@ -188,7 +204,7 @@ public class CTraderWebSocketClient {
     }
 
     private void setStopLossAndTakeProfit(long positionId, double stopLoss, double takeProfit) {
-
+        System.out.println("setStopLossAndTakeProfit ");
         ProtoOAAmendPositionSLTPReq req = ProtoOAAmendPositionSLTPReq.newBuilder()
                 .setCtidTraderAccountId(accountId)
                 .setPositionId(positionId)
@@ -230,10 +246,7 @@ public class CTraderWebSocketClient {
                 System.out.println("Konto autoryzowane ");
                 System.out.println("Gotowy do subskrypcji i nasłuchiwania danych...");
 
-                // np. EURUSD
-                long EURUSD_SYMBOL_ID = 1; // <- zmień na właściwy symbol z Twojego serwera
-
-//                subscribeToTicks(EURUSD_SYMBOL_ID); //TODO
+                subscribeToTicks(symbolByName.get("XAUUSD"));
             }
             break;
 
@@ -390,15 +403,6 @@ public class CTraderWebSocketClient {
         return Math.max(1000, Math.round(units));
     }
 
-    private void unsubscribeFromSpots(long symbolId) {
-
-        ProtoOAUnsubscribeSpotsReq req = ProtoOAUnsubscribeSpotsReq.newBuilder()
-                .setCtidTraderAccountId(accountId)
-                .addSymbolId(symbolId)
-                .build();
-
-        send(req, ProtoOAPayloadType.PROTO_OA_UNSUBSCRIBE_SPOTS_REQ_VALUE);
-    }
 
     public Long findSymbolByName(String name) {
         return symbolByName.get(name);
