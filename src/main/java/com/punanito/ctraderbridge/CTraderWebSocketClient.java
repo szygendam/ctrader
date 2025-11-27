@@ -25,13 +25,18 @@ import com.xtrader.protocol.proto.commons.ProtoHeartbeatEvent;
 import com.xtrader.protocol.proto.commons.ProtoMessage;
 import com.xtrader.protocol.proto.commons.model.ProtoPayloadType;
 import org.apache.logging.log4j.util.Strings;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
+import org.springframework.web.reactive.function.client.WebClient;
 
+import javax.annotation.PostConstruct;
 import javax.annotation.PreDestroy;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.WebSocket;
 import java.nio.ByteBuffer;
+import java.time.Instant;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
@@ -52,12 +57,26 @@ public class CTraderWebSocketClient {
     private final Map<Long, ProtoOASymbol> symbolDetails = new HashMap<>();
     private final Map<String, Long> symbolByName = new HashMap<>();
     private final Map<Long, String> symbolById = new HashMap<>();
+    private final Map<Long, Integer> symbolDigits= new HashMap<>();
+    private final Map<Long, Long> symbolLotSize= new HashMap<>();
     private double accountBalance = 0.0;
     private double lastBid = 0;
     private double lastAsk = 0;
     private ScheduledExecutorService heartbeatScheduler;
 
+    private WebClient webClient = null;
 
+    @Value("${n8n.webhook.url}")
+    private String n8nWebhookUrl;
+
+    @PostConstruct
+    public void init(WebClient.Builder webClientBuilder) {
+        this.webClient = webClientBuilder.build();
+    }
+
+    public void updateAccessToken(String accessToken) {
+        ACCESS_TOKEN = accessToken;
+    }
 
     public void connect(String clientId, String clientSecret, String accessToken) {
         CLIENT_ID = clientId;
@@ -73,7 +92,6 @@ public class CTraderWebSocketClient {
                         System.out.println("Połączono z cTrader");
 
                         CTraderWebSocketClient.this.webSocket = webSocket;
-
 
                         sendApplicationAuth();
                         sendSymbolList();
@@ -187,6 +205,24 @@ public class CTraderWebSocketClient {
         send(req, ProtoOAPayloadType.PROTO_OA_UNSUBSCRIBE_SPOTS_REQ_VALUE);
     }
 
+    public void sendGoldOrder(boolean isBuy) {
+        System.out.println("sendGoldOrder");
+        if(accountBalance > 0) {
+
+            double stopLossPips = 20;
+            long goldId = findSymbolByName("XAUUSD");
+
+            double entry = lastAsk;
+            double sl = entry - (stopLossPips / Math.pow(10, symbolDigits.get(goldId)));
+            double tp = entry + (stopLossPips / Math.pow(10, symbolDigits.get(goldId))); // RR 1:1
+
+            long volume = calculateDynamicVolume(symbolLotSize.get(goldId));
+
+            System.out.println("AUTO BUY " + symbolById.get(goldId));
+            System.out.println("Entry=" + entry + " SL=" + sl + " TP=" + tp + " Vol=" + volume);
+            sendMarketOrder(goldId, isBuy, volume);
+        }
+    }
 
     private void sendMarketOrder(long symbolId, boolean isBuy, long volume) {
         System.out.println("sendMarketOrder ");
@@ -265,10 +301,6 @@ public class CTraderWebSocketClient {
 
                 sendSymbolById(findSymbolByName("XAUUSD"));
 
-//                if (goldId != null) {
-//                    System.out.println("XAUUSD ID: " + goldId);
-//                    subscribeToTicks(goldId);
-//                }
             }
             break;
 
@@ -307,24 +339,9 @@ public class CTraderWebSocketClient {
 
                 ProtoOASymbol symbol = symbolDetails.get(event.getSymbolId());
 
-                if (symbol != null && accountBalance > 0) {
-
-                    double stopLossPips = 20;
-                    long symbolId = event.getSymbolId();
-
-                    double entry = lastAsk;
-                    double sl = entry - (stopLossPips / Math.pow(10, symbol.getDigits()));
-                    double tp = entry + (stopLossPips / Math.pow(10, symbol.getDigits())); // RR 1:1
-
-                    long volume = calculateDynamicVolume(symbol);
-
-                    System.out.println("AUTO BUY " + symbolById.get(symbolId));
-                    System.out.println("Entry=" + entry + " SL=" + sl + " TP=" + tp + " Vol=" + volume);
-
-//                    sendMarketOrder(symbolId, true, volume);
-
-                    // Żeby nie spamowało zleceń:
-                    unsubscribeFromSpots(symbolId);
+                if (symbol != null ) {
+                    symbolDigits.replace(symbol.getSymbolId(), symbol.getDigits());
+                    symbolLotSize.replace(symbol.getSymbolId(), symbol.getLotSize());
                 }
             }
 
@@ -390,14 +407,12 @@ public class CTraderWebSocketClient {
         return Math.round(price * pow) / pow;
     }
 
-    private long calculateDynamicVolume(
-            ProtoOASymbol symbol) {
+    private long calculateDynamicVolume(Long  lotSize) {
         double riskPercent = 0.1;
         double stopLossPips = 20;
         double riskAmount = accountBalance * (riskPercent / 100.0);
 
         double pipValue = 1.0; //XAU, BTC
-        long lotSize = symbol.getLotSize();
 
         double lots = riskAmount / (stopLossPips * pipValue);
         double units = lots * lotSize;
@@ -408,6 +423,23 @@ public class CTraderWebSocketClient {
 
     public Long findSymbolByName(String name) {
         return symbolByName.get(name);
+    }
+
+    private void sendDataToN8n() {
+       System.out.println("Sending data to n8n n8nWebhookUrl");
+        Map<String, String> body = new java.util.HashMap<>();
+        body.put("event", "ACCESS_DENIED");
+        body.put("timestamp", Instant.now().toString());
+        webClient.post()
+                .uri(n8nWebhookUrl)
+                .contentType(MediaType.APPLICATION_JSON)
+                .bodyValue(body)
+                .retrieve()
+                .bodyToMono(Void.class)
+                .subscribe(
+                        unused -> System.out.println("Sending n8n successfully"),
+                        err -> System.out.println("Error Sending n8n" + err)
+                );
     }
 
 

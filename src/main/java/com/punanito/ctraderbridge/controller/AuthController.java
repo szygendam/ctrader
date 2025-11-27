@@ -1,5 +1,6 @@
 package com.punanito.ctraderbridge.controller;
 
+import com.punanito.ctraderbridge.CTraderWebSocketClient;
 import com.punanito.ctraderbridge.model.AuthRequest;
 import com.punanito.ctraderbridge.service.CTraderAuthService;
 import org.slf4j.Logger;
@@ -18,9 +19,11 @@ public class AuthController {
     private static final Logger logger = LoggerFactory.getLogger(AuthController.class);
 
     private final CTraderAuthService authService;
+    private final CTraderWebSocketClient webSocketClient;
 
-    public AuthController(CTraderAuthService authService) {
+    public AuthController(CTraderAuthService authService, CTraderWebSocketClient webSocketClient) {
         this.authService = authService;
+        this.webSocketClient = webSocketClient;
     }
 
     @PostMapping("/update‑tokens")
@@ -32,6 +35,7 @@ public class AuthController {
                 request.getAccess_token(),
                 request.getRefresh_token()
         );
+        webSocketClient.updateAccessToken(request.getAccess_token());
         return ResponseEntity.ok().build();
     }
 
