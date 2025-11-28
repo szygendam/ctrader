@@ -1,14 +1,24 @@
 package com.punanito.ctraderbridge.model;
 
+import java.util.Date;
+
 public class PriceRequest {
     private double lastBid;
     private double lastAsk;
     private double spread;
+    private Date currentTime;
+    public PriceRequest() {
+    }
 
     public PriceRequest(double lastBid, double lastAsk) {
         this.lastBid = lastBid;
         this.lastAsk = lastAsk;
-        this.spread = lastBid - lastAsk;
+        if(lastBid == 0 || lastAsk == 0){
+            this.spread = 0.0;
+        } else {
+            this.spread = lastBid - lastAsk;
+        }
+        currentTime = new Date();
     }
 
     public double getLastBid() {
