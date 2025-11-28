@@ -36,6 +36,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestTemplate;
 
 import javax.annotation.PreDestroy;
+import java.io.ByteArrayOutputStream;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.WebSocket;
@@ -67,6 +68,7 @@ public class CTraderWebSocketClient {
     private double lastAsk = 0;
     private ScheduledExecutorService heartbeatScheduler;
     private RestTemplate restTemplate = new RestTemplate();
+    private final ByteArrayOutputStream buffer = new ByteArrayOutputStream();
 
 
     @Value("${n8n.webhook.url}")
@@ -101,16 +103,25 @@ public class CTraderWebSocketClient {
 
                     @Override
                     public CompletionStage<?> onBinary(WebSocket webSocket, ByteBuffer data, boolean last) {
+                        byte[] chunk = new byte[data.remaining()];
+                        data.get(chunk);
 
-                        byte[] bytes = new byte[data.remaining()];
-                        data.get(bytes);
+                        buffer.write(chunk, 0, chunk.length);
 
-                        try {
-                            ProtoMessage message = ProtoMessage.parseFrom(bytes);
-                            handleMessage(message);
+                        if (last) {
+                            try {
+                                byte[] fullMessage = buffer.toByteArray();
+                                buffer.reset();
 
-                        } catch (Exception e) {
-                            e.printStackTrace();
+                                ProtoMessage msg = ProtoMessage.parseFrom(fullMessage);
+
+                                System.out.println("RECEIVED: " + msg.getPayloadType());
+
+                                handleMessage(msg);
+
+                            } catch (Exception e) {
+                                e.printStackTrace();
+                            }
                         }
 
                         return WebSocket.Listener.super.onBinary(webSocket, data, last);
