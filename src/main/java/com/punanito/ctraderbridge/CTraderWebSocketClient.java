@@ -212,7 +212,13 @@ public class CTraderWebSocketClient {
             double stopLossPips = 20;
             long goldId = findSymbolByName("XAUUSD");
 
-            double entry = lastAsk;
+            double entry;
+            if(isBuy){
+                entry = lastAsk;
+            } else {
+                entry = lastBid;
+            }
+
             double sl = entry - (stopLossPips / Math.pow(10, symbolDigits.get(goldId)));
             double tp = entry + (stopLossPips / Math.pow(10, symbolDigits.get(goldId))); // RR 1:1
 
@@ -327,10 +333,10 @@ public class CTraderWebSocketClient {
             // TU beda splywac EVENTY
             case ProtoOAPayloadType.PROTO_OA_SPOT_EVENT_VALUE: {
                 System.out.println("Received PROTO_OA_SPOT_EVENT_VALUE");
+
                 ProtoOASpotEvent event = ProtoOASpotEvent.parseFrom(message.getPayload());
 
-                System.out.println(
-                        "TICK | symbolId=" + event.getSymbolId()
+                System.out.println("TICK | symbolId=" + event.getSymbolId()
                                 + " BID PRICE=" + event.getBid()
                                 + " ASK=" + event.getAsk());
 
@@ -340,11 +346,14 @@ public class CTraderWebSocketClient {
                 ProtoOASymbol symbol = symbolDetails.get(event.getSymbolId());
 
                 if (symbol != null ) {
+                    System.out.println(" symbol.getDigits()" + symbol.getDigits());
+                    System.out.println(" symbol.getLotSize()" + symbol.getLotSize());
                     symbolDigits.replace(symbol.getSymbolId(), symbol.getDigits());
                     symbolLotSize.replace(symbol.getSymbolId(), symbol.getLotSize());
                 }
-            }
 
+                sendDataToN8n(lastBid, lastAsk);
+            }
 
             case ProtoOAPayloadType.PROTO_OA_EXECUTION_EVENT_VALUE: {
                 System.out.println("Received PROTO_OA_EXECUTION_EVENT_VALUE");
@@ -425,10 +434,12 @@ public class CTraderWebSocketClient {
         return symbolByName.get(name);
     }
 
-    private void sendDataToN8n() {
+    private void sendDataToN8n(double lastBid, double lastAsk) {
        System.out.println("Sending data to n8n n8nWebhookUrl");
         Map<String, String> body = new java.util.HashMap<>();
-        body.put("event", "ACCESS_DENIED");
+        body.put("lastBid", "lastBid");
+        body.put("lastAsk", "lastAsk");
+        body.put("spread",  String.valueOf(lastBid - lastAsk));
         body.put("timestamp", Instant.now().toString());
         webClient.post()
                 .uri(n8nWebhookUrl)
