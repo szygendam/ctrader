@@ -26,7 +26,7 @@ public class ConnectionController {
     @PostMapping("connect")
     public ResponseEntity<Void> connect(@RequestBody ConnectRequest connectRequest) {
         logger.info("Received connect request");
-        webSocketClient.connect(connectRequest.getClient_id(),connectRequest.getClient_secret(), connectRequest.getAccess_token());
+       webSocketClient.connect(connectRequest.getClient_id(),connectRequest.getClient_secret(), connectRequest.getAccess_token());
         return ResponseEntity.ok().build();
     }
 }
