@@ -29,4 +29,11 @@ public class ConnectionController {
        webSocketClient.connect(connectRequest.getClient_id(),connectRequest.getClient_secret(), connectRequest.getAccess_token());
         return ResponseEntity.ok().build();
     }
+
+    @PostMapping(value="logout", consumes = "application/json", produces = "application/json")
+    public ResponseEntity<Void> logout() {
+        logger.info("logout request");
+        webSocketClient.logout();
+        return ResponseEntity.ok().build();
+    }
 }

@@ -3,6 +3,7 @@ package com.punanito.ctraderbridge;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.punanito.ctraderbridge.model.PriceRequest;
 import com.xtrader.protocol.openapi.v2.ProtoOAAccountAuthReq;
+import com.xtrader.protocol.openapi.v2.ProtoOAAccountLogoutReq;
 import com.xtrader.protocol.openapi.v2.ProtoOAAmendPositionSLTPReq;
 import com.xtrader.protocol.openapi.v2.ProtoOAApplicationAuthReq;
 import com.xtrader.protocol.openapi.v2.ProtoOAExecutionEvent;
@@ -414,6 +415,16 @@ public class CTraderWebSocketClient {
         if (heartbeatScheduler != null) {
             heartbeatScheduler.shutdownNow();
         }
+        logout();
+    }
+
+    public void logout() {
+        System.out.println("logout ");
+        ProtoOAAccountLogoutReq req = ProtoOAAccountLogoutReq.newBuilder()
+                .setCtidTraderAccountId(accountId)
+                .build();
+
+        send(req, ProtoOAPayloadType.PROTO_OA_ACCOUNT_LOGOUT_REQ_VALUE);
     }
 
 
