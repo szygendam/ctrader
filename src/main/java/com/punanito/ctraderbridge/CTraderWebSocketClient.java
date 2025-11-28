@@ -435,7 +435,7 @@ public class CTraderWebSocketClient {
        System.out.println("Sending data to n8n n8nWebhookUrl");
 
         String url = n8nWebhookUrl;
-        PriceRequest request = new PriceRequest(lastBid, lastAsk;
+        PriceRequest request = new PriceRequest(lastBid, lastAsk);
 
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
