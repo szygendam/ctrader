@@ -56,11 +56,11 @@ public class CTraderWebSocketClient {
 
     WebSocket webSocket;
     long accountId;
-    private final Map<Long, ProtoOASymbol> symbolDetails = new HashMap<>();
-    private final Map<String, Long> symbolByName = new HashMap<>();
-    private final Map<Long, String> symbolById = new HashMap<>();
-    private final Map<Long, Integer> symbolDigits= new HashMap<>();
-    private final Map<Long, Long> symbolLotSize= new HashMap<>();
+    private Map<Long, ProtoOASymbol> symbolDetails = new HashMap<>();
+    private Map<String, Long> symbolByName = new HashMap<>();
+    private Map<Long, String> symbolById = new HashMap<>();
+    private Map<Long, Integer> symbolDigits= new HashMap<>();
+    private Map<Long, Long> symbolLotSize= new HashMap<>();
     private double accountBalance = 0.0;
     private double lastBid = 0;
     private double lastAsk = 0;
@@ -76,13 +76,16 @@ public class CTraderWebSocketClient {
     }
 
     public void connect(String clientId, String clientSecret, String accessToken) {
+        System.out.println("clientId " + clientId);
+        System.out.println("CLIENT_SECRET " + clientSecret);
+        System.out.println("ACCESS_TOKEN " + accessToken);
         CLIENT_ID = clientId;
         CLIENT_SECRET = clientSecret;
         ACCESS_TOKEN = accessToken;
 
         HttpClient.newHttpClient()
                 .newWebSocketBuilder()
-                .buildAsync(URI.create("wss://demo.ctraderapi.com:5036"), new WebSocket.Listener() {
+                .buildAsync(URI.create("wss://demo.ctraderapi.com:5035"), new WebSocket.Listener() {
 
                     @Override
                     public void onOpen(WebSocket webSocket) {
@@ -286,7 +289,6 @@ public class CTraderWebSocketClient {
                 System.out.println("Konto autoryzowane ");
                 System.out.println("Gotowy do subskrypcji i nasłuchiwania danych...");
 
-                subscribeToTicks(symbolByName.get("XAUUSD"));
             }
             break;
 
@@ -324,6 +326,8 @@ public class CTraderWebSocketClient {
                     symbolDetails.putIfAbsent(protoOASymbol.getSymbolId(), protoOASymbol);
                 }
                 System.out.println("Załadowano " + symbolDetails.size() + " symboli");
+
+                subscribeGold();
             }
             break;
 
@@ -381,8 +385,14 @@ public class CTraderWebSocketClient {
             break;
 
             default: {
-                System.out.println("Message type: " + message.getPayloadType());
+                System.out.println("Message type: " + message.getPayloadType() + " payload: " + message.getPayload());
             }
+        }
+    }
+
+    private void subscribeGold() {
+        if (!symbolByName.isEmpty() && symbolByName.get("XAUUSD") != null){
+            subscribeToTicks(symbolByName.get("XAUUSD"));
         }
     }
 

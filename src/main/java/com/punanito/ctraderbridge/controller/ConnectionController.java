@@ -23,7 +23,7 @@ public class ConnectionController {
         this.webSocketClient = webSocketClient;
     }
 
-    @PostMapping("connect")
+    @PostMapping(value="connect", consumes = "application/json", produces = "application/json")
     public ResponseEntity<Void> connect(@RequestBody ConnectRequest connectRequest) {
         logger.info("Received connect request");
        webSocketClient.connect(connectRequest.getClient_id(),connectRequest.getClient_secret(), connectRequest.getAccess_token());
