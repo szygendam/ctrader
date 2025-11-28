@@ -368,9 +368,14 @@ public class CTraderWebSocketClient {
             }
 
             case ProtoOAPayloadType.PROTO_OA_EXECUTION_EVENT_VALUE: {
-                System.out.println("Received PROTO_OA_EXECUTION_EVENT_VALUE");
-                ProtoOAExecutionEvent event =
-                        ProtoOAExecutionEvent.parseFrom(message.getPayload());
+                ProtoOAExecutionEvent event = null;
+                try {
+                     event = ProtoOAExecutionEvent.parseFrom(message.getPayload());
+                    System.out.println("Received PROTO_OA_EXECUTION_EVENT_VALUE");
+                } catch (InvalidProtocolBufferException e) {
+//                    System.out.println("Received empty PROTO_OA_EXECUTION_EVENT_VALUE - ignoring");
+                    break;
+                }
 
                 System.out.println("EXECUTION: " + event.getExecutionType());
                 if (event.hasOrder()) {
