@@ -23,7 +23,7 @@ public class AuthController {
         this.webSocketClient = webSocketClient;
     }
 
-    @PostMapping("/update‑tokens")
+    @PostMapping("/update-tokens")
     public ResponseEntity<Void> updateTokens(@RequestBody AuthRequest request) {
         logger.info("Received token update request: code={}, access_token={}, refresh_token={}",
                 request.getCode(), request.getAccess_token(), request.getRefresh_token());
