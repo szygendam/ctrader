@@ -16,7 +16,7 @@ public class PriceRequest {
         if(lastBid == 0 || lastAsk == 0){
             this.spread = 0.0;
         } else {
-            this.spread = lastBid - lastAsk;
+            this.spread =  lastAsk - lastBid;
         }
         currentTime = new Date();
     }
