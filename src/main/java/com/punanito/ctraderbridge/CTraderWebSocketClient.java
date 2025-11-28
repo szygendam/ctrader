@@ -1,6 +1,7 @@
 package com.punanito.ctraderbridge;
 
 import com.google.protobuf.InvalidProtocolBufferException;
+import com.punanito.ctraderbridge.model.PriceRequest;
 import com.xtrader.protocol.openapi.v2.ProtoOAAccountAuthReq;
 import com.xtrader.protocol.openapi.v2.ProtoOAAmendPositionSLTPReq;
 import com.xtrader.protocol.openapi.v2.ProtoOAApplicationAuthReq;
@@ -26,17 +27,18 @@ import com.xtrader.protocol.proto.commons.ProtoMessage;
 import com.xtrader.protocol.proto.commons.model.ProtoPayloadType;
 import org.apache.logging.log4j.util.Strings;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Component;
-import org.springframework.web.reactive.function.client.WebClient;
+import org.springframework.web.client.RestTemplate;
 
-import javax.annotation.PostConstruct;
 import javax.annotation.PreDestroy;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.WebSocket;
 import java.nio.ByteBuffer;
-import java.time.Instant;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
@@ -63,16 +65,11 @@ public class CTraderWebSocketClient {
     private double lastBid = 0;
     private double lastAsk = 0;
     private ScheduledExecutorService heartbeatScheduler;
+    private RestTemplate restTemplate = new RestTemplate();
 
-    private WebClient webClient = null;
 
     @Value("${n8n.webhook.url}")
     private String n8nWebhookUrl;
-
-    @PostConstruct
-    public void init(WebClient.Builder webClientBuilder) {
-        this.webClient = webClientBuilder.build();
-    }
 
     public void updateAccessToken(String accessToken) {
         ACCESS_TOKEN = accessToken;
@@ -436,21 +433,18 @@ public class CTraderWebSocketClient {
 
     private void sendDataToN8n(double lastBid, double lastAsk) {
        System.out.println("Sending data to n8n n8nWebhookUrl");
-        Map<String, String> body = new java.util.HashMap<>();
-        body.put("lastBid", "lastBid");
-        body.put("lastAsk", "lastAsk");
-        body.put("spread",  String.valueOf(lastBid - lastAsk));
-        body.put("timestamp", Instant.now().toString());
-        webClient.post()
-                .uri(n8nWebhookUrl)
-                .contentType(MediaType.APPLICATION_JSON)
-                .bodyValue(body)
-                .retrieve()
-                .bodyToMono(Void.class)
-                .subscribe(
-                        unused -> System.out.println("Sending n8n successfully"),
-                        err -> System.out.println("Error Sending n8n" + err)
-                );
+
+        String url = n8nWebhookUrl;
+        PriceRequest request = new PriceRequest(lastBid, lastAsk;
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+
+        HttpEntity<PriceRequest> entity = new HttpEntity<>(request, headers);
+
+        ResponseEntity<String> response = restTemplate.postForEntity(url, entity, String.class);
+
+        System.out.println(response.getBody());
     }
 
 
