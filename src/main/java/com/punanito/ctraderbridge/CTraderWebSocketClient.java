@@ -94,7 +94,6 @@ public class CTraderWebSocketClient {
                         CTraderWebSocketClient.this.webSocket = webSocket;
 
                         sendApplicationAuth();
-                        sendSymbolList();
                         startHeartbeat();
                         WebSocket.Listener.super.onOpen(webSocket);
                     }
@@ -288,7 +287,7 @@ public class CTraderWebSocketClient {
                 System.out.println("Received PROTO_OA_ACCOUNT_AUTH_RES_VALUE");
                 System.out.println("Konto autoryzowane ");
                 System.out.println("Gotowy do subskrypcji i nasłuchiwania danych...");
-
+                sendSymbolList();
             }
             break;
 
