@@ -27,7 +27,7 @@ public class OrderController {
     @PostMapping("/new")
     public ResponseEntity<Void> connect(@RequestBody OrderRequest orderRequest) {
         logger.info("Received new order request");
-        webSocketClient.sendGoldOrder(orderRequest.isBuy());
+        webSocketClient.sendGoldOrder(orderRequest.isBuy(),orderRequest.getMessageId(), orderRequest.getRiskLvl());
         return ResponseEntity.ok().build();
     }
 }

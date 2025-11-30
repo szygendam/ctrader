@@ -216,32 +216,50 @@ public class CTraderWebSocketClient {
         send(req, ProtoOAPayloadType.PROTO_OA_UNSUBSCRIBE_SPOTS_REQ_VALUE);
     }
 
-    public void sendGoldOrder(boolean isBuy) {
+    public void sendGoldOrder(boolean isBuy, String messageId, String riskLvl) {
         System.out.println("sendGoldOrder");
         if(accountBalance > 0) {
 
-            double stopLossPips = 20;
+            double takeProfitPips = 20;
+            double stopLossPips = calculateStopLoss(takeProfitPips, riskLvl);
             long goldId = findSymbolByName("XAUUSD");
+            double sl = 0;
+            double tp = 0;
 
             double entry;
             if(isBuy){
-                entry = lastAsk;
+                entry = lastAsk; // cena, po której ktoś chce sprzedać, czyli Ty jako kupujący musisz ją zaakceptować.
+                sl = entry - (stopLossPips / Math.pow(10, symbolDigits.get(goldId)));
+                tp = entry + (takeProfitPips / Math.pow(10, symbolDigits.get(goldId)));
             } else {
-                entry = lastBid;
+                entry = lastBid; // cena, po której ktoś chce kupić, a Ty sprzedajesz po tej ofercie.
+                sl = entry + (stopLossPips / Math.pow(10, symbolDigits.get(goldId)));
+                tp = entry - (takeProfitPips / Math.pow(10, symbolDigits.get(goldId)));
             }
 
-            double sl = entry - (stopLossPips / Math.pow(10, symbolDigits.get(goldId)));
-            double tp = entry + (stopLossPips / Math.pow(10, symbolDigits.get(goldId))); // RR 1:1
-
-            long volume = calculateDynamicVolume(symbolLotSize.get(goldId));
+            long volume = calculateDynamicVolume(symbolLotSize.get(goldId), stopLossPips);
 
             System.out.println("AUTO BUY " + symbolById.get(goldId));
             System.out.println("Entry=" + entry + " SL=" + sl + " TP=" + tp + " Vol=" + volume);
-            sendMarketOrder(goldId, isBuy, volume);
+            sendMarketOrder(goldId, isBuy, volume, messageId);
         }
     }
 
-    private void sendMarketOrder(long symbolId, boolean isBuy, long volume) {
+    private double calculateStopLoss(double takeProfitPips, String riskLvl) {
+        switch(riskLvl){
+            case "LOW":
+                return  takeProfitPips; // RR TP 1:1 SL
+            case "MEDIUM":
+                return  takeProfitPips * 2; // RR TP 1:2 SL
+            case "HIGH":
+                return  takeProfitPips * 3; // RR TP 1:3 SL
+                default:
+            System.out.println("ERROR calculateStopLoss ");
+                   return  takeProfitPips;
+        }
+    }
+
+    private void sendMarketOrder(long symbolId, boolean isBuy, long volume, String messageId) {
         System.out.println("sendMarketOrder ");
 
         ProtoOANewOrderReq req = ProtoOANewOrderReq.newBuilder()
@@ -252,6 +270,7 @@ public class CTraderWebSocketClient {
                         ? ProtoOATradeSide.BUY
                         : ProtoOATradeSide.SELL)
                 .setVolume(volume)
+                .setClientOrderId(messageId)
                 .build();
 
         send(req, ProtoOAPayloadType.PROTO_OA_NEW_ORDER_REQ_VALUE);
@@ -444,14 +463,8 @@ public class CTraderWebSocketClient {
     }
 
 
-    private static double round(double price, int digits) {
-        double pow = Math.pow(10, digits);
-        return Math.round(price * pow) / pow;
-    }
-
-    private long calculateDynamicVolume(Long  lotSize) {
-        double riskPercent = 0.1;
-        double stopLossPips = 20;
+    private long calculateDynamicVolume(Long  lotSize,  double stopLossPips) {
+        double riskPercent = 33.33;
         double riskAmount = accountBalance * (riskPercent / 100.0);
 
         double pipValue = 1.0; //XAU, BTC
