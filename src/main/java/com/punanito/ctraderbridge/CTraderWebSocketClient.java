@@ -329,8 +329,8 @@ public class CTraderWebSocketClient {
                         ProtoOASymbolsListRes.parseFrom(message.getPayload());
 
                 for (ProtoOALightSymbol symbol : res.getSymbolList()) {
-                    symbolByName.put(symbol.getSymbolName(), symbol.getSymbolId());
-                    symbolById.put(symbol.getSymbolId(),symbol.getSymbolName());
+                    symbolByName.putIfAbsent(symbol.getSymbolName(), symbol.getSymbolId());
+                    symbolById.putIfAbsent(symbol.getSymbolId(),symbol.getSymbolName());
                 }
                 System.out.println("Załadowano " + symbolByName.size() + " symboli");
 
@@ -379,8 +379,8 @@ public class CTraderWebSocketClient {
                 if (symbol != null ) {
                     System.out.println(" symbol.getDigits()" + symbol.getDigits());
                     System.out.println(" symbol.getLotSize()" + symbol.getLotSize());
-                    symbolDigits.replace(symbol.getSymbolId(), symbol.getDigits());
-                    symbolLotSize.replace(symbol.getSymbolId(), symbol.getLotSize());
+                    symbolDigits.putIfAbsent(symbol.getSymbolId(), symbol.getDigits());
+                    symbolLotSize.putIfAbsent(symbol.getSymbolId(), symbol.getLotSize());
                 }
 
                 sendDataToN8n(lastBid, lastAsk);
