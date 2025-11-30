@@ -1,3 +1,6 @@
+server:
+  port: 8081
+
 n8n:
   webhook:
-    url: "http://localhost:5678/webhook/c2ff27bc-cc52-4350-afe1-201fe0882e29"
+    url: "http://localhost:5678/webhook/59d68d69-352f-4388-b335-c6d42bf84b11"
