@@ -6,7 +6,7 @@ public class PriceRequest {
     private double lastBid;
     private double lastAsk;
     private double spread;
-    private Date currentTime;
+    private long currentTime;
     public PriceRequest() {
     }
 
@@ -18,7 +18,7 @@ public class PriceRequest {
         } else {
             this.spread =  lastAsk - lastBid;
         }
-        currentTime = new Date();
+        currentTime = System.currentTimeMillis();
     }
 
     public double getLastBid() {

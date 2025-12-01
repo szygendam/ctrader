@@ -79,9 +79,6 @@ public class CTraderWebSocketClient {
     }
 
     public void connect(String clientId, String clientSecret, String accessToken) {
-        System.out.println("clientId " + clientId);
-        System.out.println("CLIENT_SECRET " + clientSecret);
-        System.out.println("ACCESS_TOKEN " + accessToken);
         CLIENT_ID = clientId;
         CLIENT_SECRET = clientSecret;
         ACCESS_TOKEN = accessToken;
@@ -239,9 +236,8 @@ public class CTraderWebSocketClient {
 
             long volume = calculateDynamicVolume(symbolLotSize.get(goldId), stopLossPips);
 
-            System.out.println("AUTO BUY " + symbolById.get(goldId));
             System.out.println("Entry=" + entry + " SL=" + sl + " TP=" + tp + " Vol=" + volume);
-            sendMarketOrder(goldId, isBuy, volume, messageId);
+//            sendMarketOrder(goldId, isBuy, volume, messageId);
         }
     }
 
@@ -329,6 +325,7 @@ public class CTraderWebSocketClient {
                         ProtoOASymbolsListRes.parseFrom(message.getPayload());
 
                 for (ProtoOALightSymbol symbol : res.getSymbolList()) {
+//                    System.out.println("SymbolName: " + symbol.getSymbolName());
                     symbolByName.putIfAbsent(symbol.getSymbolName(), symbol.getSymbolId());
                     symbolById.putIfAbsent(symbol.getSymbolId(),symbol.getSymbolName());
                 }
