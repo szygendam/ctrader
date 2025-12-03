@@ -40,5 +40,7 @@ public class PriceRequest {
     public void setSpread(double spread) {
         this.spread = spread;
     }
+    public void setCurrentTime(long currentTime) {this.currentTime = currentTime;}
+    public long getCurrentTime() {return currentTime;}
 
 }
