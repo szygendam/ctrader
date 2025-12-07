@@ -1,6 +1,7 @@
 package com.punanito.ctraderbridge;
 
 import com.google.protobuf.InvalidProtocolBufferException;
+import com.punanito.ctraderbridge.model.AccountRequest;
 import com.punanito.ctraderbridge.model.PriceRequest;
 import com.xtrader.protocol.openapi.v2.ProtoOAAccountAuthReq;
 import com.xtrader.protocol.openapi.v2.ProtoOAAccountLogoutReq;
@@ -64,6 +65,7 @@ public class CTraderWebSocketClient {
     private Map<Long, Integer> symbolDigits= new HashMap<>();
     private Map<Long, Long> symbolLotSize= new HashMap<>();
     private double accountBalance = 0.0;
+    private double accountBalanceHalf = 0.0;
     private double lastBid = 0;
     private double lastAsk = 0;
     private ScheduledExecutorService heartbeatScheduler;
@@ -71,8 +73,11 @@ public class CTraderWebSocketClient {
     private final ByteArrayOutputStream buffer = new ByteArrayOutputStream();
 
 
-    @Value("${n8n.webhook.url}")
-    private String n8nWebhookUrl;
+    @Value("${n8n.webhook.ticks.url}")
+    private String n8nWebhookTicksUrl;
+
+    @Value("${n8n.webhook.accountBalance.url}")
+    private String n8nWebhookAccountBalanceUrl;
 
     public void updateAccessToken(String accessToken) {
         ACCESS_TOKEN = accessToken;
@@ -149,7 +154,7 @@ public class CTraderWebSocketClient {
 
     // Pobranie szczegółów
     private void sendSymbolById(long id) {
-        System.out.println("sendSymbolById");
+        System.out.println("sendSymbolById: " +  id);
         ProtoOASymbolByIdReq req = ProtoOASymbolByIdReq.newBuilder()
                 .addSymbolId(id)
                 .setCtidTraderAccountId(accountId)
@@ -215,10 +220,11 @@ public class CTraderWebSocketClient {
 
     public void sendGoldOrder(boolean isBuy, String messageId, String riskLvl) {
         System.out.println("sendGoldOrder");
-        if(accountBalance > 0) {
+        if(accountBalanceHalf > 0) {
 
-            double takeProfitPips = 20;
-            double stopLossPips = calculateStopLoss(takeProfitPips, riskLvl);
+            double takeProfitPips = 1;
+//            double stopLossPips = calculateStopLoss(takeProfitPips, riskLvl);
+            double stopLossPips = takeProfitPips * 3;
             long goldId = findSymbolByName("XAUUSD");
             double sl = 0;
             double tp = 0;
@@ -244,11 +250,11 @@ public class CTraderWebSocketClient {
     private double calculateStopLoss(double takeProfitPips, String riskLvl) {
         switch(riskLvl){
             case "LOW":
-                return  takeProfitPips; // RR TP 1:1 SL
-            case "MEDIUM":
-                return  takeProfitPips * 2; // RR TP 1:2 SL
-            case "HIGH":
                 return  takeProfitPips * 3; // RR TP 1:3 SL
+            case "MEDIUM":
+                return  takeProfitPips * 4; // RR TP 1:4 SL
+            case "HIGH":
+                return  takeProfitPips * 5; // RR TP 1:5 SL
                 default:
             System.out.println("ERROR calculateStopLoss ");
                    return  takeProfitPips;
@@ -325,13 +331,14 @@ public class CTraderWebSocketClient {
                         ProtoOASymbolsListRes.parseFrom(message.getPayload());
 
                 for (ProtoOALightSymbol symbol : res.getSymbolList()) {
-//                    System.out.println("SymbolName: " + symbol.getSymbolName());
+                    System.out.println("SymbolName: " + symbol.getSymbolName());
                     symbolByName.putIfAbsent(symbol.getSymbolName(), symbol.getSymbolId());
                     symbolById.putIfAbsent(symbol.getSymbolId(),symbol.getSymbolName());
                 }
                 System.out.println("Załadowano " + symbolByName.size() + " symboli");
 
                 sendSymbolById(findSymbolByName("XAUUSD"));
+//                sendSymbolById(findSymbolByName("US 500"));
 
             }
             break;
@@ -342,7 +349,9 @@ public class CTraderWebSocketClient {
                         ProtoOATraderUpdatedEvent.parseFrom(message.getPayload());
 
                 accountBalance = event.getTrader().getBalance();
+                accountBalanceHalf = accountBalance / 2;
                 System.out.println("BALANCE = " + accountBalance);
+                System.out.println("BALANCE HALF = " + accountBalanceHalf);
             }
             break;
 
@@ -364,7 +373,7 @@ public class CTraderWebSocketClient {
 
                 ProtoOASpotEvent event = ProtoOASpotEvent.parseFrom(message.getPayload());
 
-                System.out.println("TICK | symbolId=" + event.getSymbolId()
+                System.out.println("TICK | symboName=" + symbolById.get(event.getSymbolId())
                                 + " BID PRICE=" + event.getBid()
                                 + " ASK=" + event.getAsk());
 
@@ -380,7 +389,7 @@ public class CTraderWebSocketClient {
                     symbolLotSize.putIfAbsent(symbol.getSymbolId(), symbol.getLotSize());
                 }
 
-                sendDataToN8n(lastBid, lastAsk);
+                sendTicksToN8n(lastBid, lastAsk ,symbolById.get(event.getSymbolId()));
             }
 
             case ProtoOAPayloadType.PROTO_OA_EXECUTION_EVENT_VALUE: {
@@ -461,8 +470,8 @@ public class CTraderWebSocketClient {
 
 
     private long calculateDynamicVolume(Long  lotSize,  double stopLossPips) {
-        double riskPercent = 33.33;
-        double riskAmount = accountBalance * (riskPercent / 100.0);
+        double riskPercent = 10.0;
+        double riskAmount = accountBalanceHalf * (riskPercent / 100.0);
 
         double pipValue = 1.0; //XAU, BTC
 
@@ -477,16 +486,32 @@ public class CTraderWebSocketClient {
         return symbolByName.get(name);
     }
 
-    private void sendDataToN8n(double lastBid, double lastAsk) {
-       System.out.println("Sending data to n8n n8nWebhookUrl: " + n8nWebhookUrl);
+    private void sendTicksToN8n(double lastBid, double lastAsk, String symbolName) {
+       System.out.println("Sending data to n8n n8nWebhookTicksUrl: " + n8nWebhookTicksUrl);
 
-        String url = n8nWebhookUrl;
-        PriceRequest request = new PriceRequest(lastBid, lastAsk);
+        String url = n8nWebhookTicksUrl;
+        PriceRequest request = new PriceRequest(lastBid, lastAsk, symbolByName.get(symbolName) ,symbolName);
 
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
 
         HttpEntity<PriceRequest> entity = new HttpEntity<>(request, headers);
+
+        ResponseEntity<String> response = restTemplate.postForEntity(url, entity, String.class);
+
+        System.out.println(response.getBody());
+    }
+
+    private void sendAccountBalanceToN8n(double accountBalance) {
+        System.out.println("Sending account balance to n8n n8nWebhookAccountBalanceUrl: " + n8nWebhookAccountBalanceUrl);
+
+        String url = n8nWebhookAccountBalanceUrl;
+        AccountRequest request = new AccountRequest(accountBalance);
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+
+        HttpEntity<AccountRequest> entity = new HttpEntity<>(request, headers);
 
         ResponseEntity<String> response = restTemplate.postForEntity(url, entity, String.class);
 

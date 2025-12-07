@@ -2,15 +2,15 @@ package com.punanito.ctraderbridge.model;
 
 import java.util.Date;
 
-public class PriceRequest {
+public class PriceRequest extends SymbolRequest {
     private double lastBid;
     private double lastAsk;
     private double spread;
     private long currentTime;
-    public PriceRequest() {
-    }
 
-    public PriceRequest(double lastBid, double lastAsk) {
+
+    public PriceRequest(double lastBid, double lastAsk, long symbolId, String symbolName) {
+       super(symbolId,symbolName);
         this.lastBid = lastBid;
         this.lastAsk = lastAsk;
         if(lastBid == 0 || lastAsk == 0){
