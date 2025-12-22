@@ -40,10 +40,12 @@ import org.springframework.web.client.RestTemplate;
 import javax.annotation.PostConstruct;
 import javax.annotation.PreDestroy;
 import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.WebSocket;
 import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
@@ -92,52 +94,72 @@ public class CTraderWebSocketClient {
     }
 
     public void connect(String clientId, String clientSecret, String accessToken) {
+
         CLIENT_ID = clientId;
         CLIENT_SECRET = clientSecret;
         ACCESS_TOKEN = accessToken;
 
         HttpClient.newHttpClient()
                 .newWebSocketBuilder()
-                .buildAsync(URI.create("wss://demo.ctraderapi.com:5035"), new WebSocket.Listener() {
+                .buildAsync(
+                        URI.create("wss://demo.ctraderapi.com:5035"),
+                        new WebSocket.Listener() {
 
-                    @Override
-                    public void onOpen(WebSocket webSocket) {
-                        System.out.println("Połączono z cTrader");
+                            private final ByteArrayOutputStream buffer = new ByteArrayOutputStream();
 
-                        CTraderWebSocketClient.this.webSocket = webSocket;
+                            @Override
+                            public void onOpen(WebSocket webSocket) {
+                                System.out.println("Połączono z cTrader");
+                                CTraderWebSocketClient.this.webSocket = webSocket;
 
-                        sendApplicationAuth();
-                        startHeartbeat();
-                        startGoldSubscription();
-                        WebSocket.Listener.super.onOpen(webSocket);
-                    }
+                                sendApplicationAuth();
+                                startHeartbeat();
+                                startGoldSubscription();
 
-                    @Override
-                    public CompletionStage<?> onBinary(WebSocket webSocket, ByteBuffer data, boolean last) {
-                        byte[] chunk = new byte[data.remaining()];
-                        data.get(chunk);
+                                WebSocket.Listener.super.onOpen(webSocket);
+                            }
 
-                        buffer.write(chunk, 0, chunk.length);
+                            @Override
+                            public CompletionStage<?> onBinary(
+                                    WebSocket webSocket,
+                                    ByteBuffer data,
+                                    boolean last
+                            ) {
+                                byte[] chunk = new byte[data.remaining()];
+                                data.get(chunk);
 
-                        if (last) {
-                            try {
-                                byte[] fullMessage = buffer.toByteArray();
-                                buffer.reset();
+                                buffer.write(chunk, 0, chunk.length);
 
-                                ProtoMessage msg = ProtoMessage.parseFrom(fullMessage);
+                                if (last) {
+                                    byte[] fullMessage = buffer.toByteArray();
+                                    buffer.reset();
 
-//                                System.out.println("RECEIVED: " + msg.getPayloadType());
+                                    try {
+                                        ProtoMessage msg = ProtoMessage.parseFrom(fullMessage);
+                                        handleMessage(msg);
 
-                                handleMessage(msg);
+                                    } catch (Exception e) {
+                                        System.err.println(
+                                                "INVALID PROTOBUF (" + fullMessage.length + " bytes)"
+                                        );
+                                        System.err.println(toHex(fullMessage));
+                                        e.printStackTrace();
+                                    }
+                                }
 
-                            } catch (Exception e) {
-                                e.printStackTrace();
+                                return WebSocket.Listener.super.onBinary(webSocket, data, last);
                             }
                         }
+                ).join();
+    }
 
-                        return WebSocket.Listener.super.onBinary(webSocket, data, last);
-                    }
-                }).join();
+
+    private static String toHex(byte[] bytes) {
+        StringBuilder sb = new StringBuilder(bytes.length * 2);
+        for (byte b : bytes) {
+            sb.append(String.format("%02x", b));
+        }
+        return sb.toString();
     }
 
     private void startTickWatcher() {
@@ -392,6 +414,7 @@ public class CTraderWebSocketClient {
                 ProtoOASymbolByIdRes event = ProtoOASymbolByIdRes.parseFrom(message.getPayload());
                 for (ProtoOASymbol protoOASymbol : event.getSymbolList()) {
                     symbolDetails.putIfAbsent(protoOASymbol.getSymbolId(), protoOASymbol);
+                    System.out.println("protoOASymbol.getSymbolId() " + protoOASymbol.getSymbolId());
                 }
                 System.out.println("Załadowano " + symbolDetails.size() + " symboli");
 
