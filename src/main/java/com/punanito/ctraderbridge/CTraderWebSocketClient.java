@@ -167,7 +167,7 @@ public class CTraderWebSocketClient {
         ticksWatcher = Executors.newScheduledThreadPool(1);
         ticksWatcher.scheduleAtFixedRate(() -> {
             System.out.println("startTickWatcher");
-            if(System.currentTimeMillis() - lastTickTime > 1000) {
+            if(System.currentTimeMillis() - lastTickTime > 2000) {
                 if(lastTickTime != 0) {
                     logout();
                     try {
