@@ -61,6 +61,7 @@ public class CTraderWebSocketClient {
 
     WebSocket webSocket;
     long accountId;
+    long lastTickTime = 0;
     private Map<Long, ProtoOASymbol> symbolDetails = new HashMap<>();
     private Map<String, Long> symbolByName = new HashMap<>();
     private Map<Long, String> symbolById = new HashMap<>();
@@ -72,6 +73,7 @@ public class CTraderWebSocketClient {
     private double lastAsk = 0;
     private ScheduledExecutorService heartbeatScheduler;
     private ScheduledExecutorService goldSubscriptionScheduler;
+    private ScheduledExecutorService ticksWatcher;
     private RestTemplate restTemplate = new RestTemplate();
     private final ByteArrayOutputStream buffer = new ByteArrayOutputStream();
 
@@ -136,6 +138,17 @@ public class CTraderWebSocketClient {
                         return WebSocket.Listener.super.onBinary(webSocket, data, last);
                     }
                 }).join();
+    }
+
+    private void startTickWatcher() {
+
+        ticksWatcher = Executors.newScheduledThreadPool(1);
+        ticksWatcher.scheduleAtFixedRate(() -> {
+            System.out.println("startTickWatcher");
+            if(System.currentTimeMillis() - lastTickTime > 1000) {
+                connectToN8n();
+            }
+        }, 2, 10, TimeUnit.SECONDS);
     }
 
     // Autoryzacja aplikacji
@@ -508,7 +521,7 @@ public class CTraderWebSocketClient {
 
     @PostConstruct
     public void init() {
-        connectToN8n();
+        startTickWatcher();
     }
 
     public void logout() {
@@ -541,6 +554,7 @@ public class CTraderWebSocketClient {
     private void sendTicksToN8n(double lastBid, double lastAsk, String symbolName) {
 //       System.out.println("Sending ticks to n8n n8nWebhookTicksUrl: " + n8nWebhookTicksUrl);
 
+        lastTickTime = System.currentTimeMillis();
         String url = n8nWebhookTicksUrl;
         PriceRequest request = new PriceRequest(lastBid, lastAsk, symbolByName.get(symbolName) ,symbolName);
 
