@@ -4,6 +4,6 @@ server:
 n8n:
   webhook:
     ticks:
-      url: "http://localhost:5678/webhook-test/59d68d69-352f-4388-b335-c6d42bf84b11"
+      url: "http://localhost:5678/webhook/59d68d69-352f-4388-b335-c6d42bf84b11"
     accountBalance:
-      url: "http://localhost:5678/webhook-test/db517cb7-c70d-4d73-b2d1-a942ee842488"
+      url: "http://localhost:5678/webhook/db517cb7-c70d-4d73-b2d1-a942ee842488"

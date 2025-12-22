@@ -69,6 +69,7 @@ public class CTraderWebSocketClient {
     private double lastBid = 0;
     private double lastAsk = 0;
     private ScheduledExecutorService heartbeatScheduler;
+    private ScheduledExecutorService goldSubscriptionScheduler;
     private RestTemplate restTemplate = new RestTemplate();
     private final ByteArrayOutputStream buffer = new ByteArrayOutputStream();
 
@@ -100,6 +101,7 @@ public class CTraderWebSocketClient {
 
                         sendApplicationAuth();
                         startHeartbeat();
+                        startGoldSubscription();
                         WebSocket.Listener.super.onOpen(webSocket);
                     }
 
@@ -117,7 +119,7 @@ public class CTraderWebSocketClient {
 
                                 ProtoMessage msg = ProtoMessage.parseFrom(fullMessage);
 
-                                System.out.println("RECEIVED: " + msg.getPayloadType());
+//                                System.out.println("RECEIVED: " + msg.getPayloadType());
 
                                 handleMessage(msg);
 
@@ -206,10 +208,20 @@ public class CTraderWebSocketClient {
 
         send(req, ProtoOAPayloadType.PROTO_OA_SUBSCRIBE_SPOTS_REQ_VALUE);
     }
+//
+//    private void subscribeTrader() {
+//        System.out.println("subscribeTrader ");
+//        ProtoOASubscribe req = ProtoOASubscribeSpotsReq.newBuilder()
+//                .setCtidTraderAccountId(accountId)
+//                .addSymbolId(symbolId)
+//                .build();
+//
+//        send(req, ProtoOAPayloadType.PROTO_OA_SUBSCRIBE_SPOTS_REQ_VALUE);
+//    }
 
 
     private void unsubscribeFromSpots(long symbolId) {
-        System.out.println("unsubscribeFromSpots ");
+        System.out.println("unsubscribeFromSpots " + symbolId);
         ProtoOAUnsubscribeSpotsReq req = ProtoOAUnsubscribeSpotsReq.newBuilder()
                 .setCtidTraderAccountId(accountId)
                 .addSymbolId(symbolId)
@@ -222,9 +234,10 @@ public class CTraderWebSocketClient {
         System.out.println("sendGoldOrder");
         if(accountBalanceHalf > 0) {
 
-            double takeProfitPips = 1;
+            double takeProfitPips = 2; //range
+//            double takeProfitPips = 5; // trend
 //            double stopLossPips = calculateStopLoss(takeProfitPips, riskLvl);
-            double stopLossPips = takeProfitPips * 3;
+            double stopLossPips = takeProfitPips * 10;
             long goldId = findSymbolByName("XAUUSD");
             double sl = 0;
             double tp = 0;
@@ -242,7 +255,7 @@ public class CTraderWebSocketClient {
 
             long volume = calculateDynamicVolume(symbolLotSize.get(goldId), stopLossPips);
 
-            System.out.println("Entry=" + entry + " SL=" + sl + " TP=" + tp + " Vol=" + volume);
+            System.out.println("NEW Entry=" + entry + " SL=" + sl + " TP=" + tp + " Vol=" + volume);
 //            sendMarketOrder(goldId, isBuy, volume, messageId);
         }
     }
@@ -252,9 +265,9 @@ public class CTraderWebSocketClient {
             case "LOW":
                 return  takeProfitPips * 3; // RR TP 1:3 SL
             case "MEDIUM":
-                return  takeProfitPips * 4; // RR TP 1:4 SL
+                return  takeProfitPips * 6; // RR TP 1:6 SL
             case "HIGH":
-                return  takeProfitPips * 5; // RR TP 1:5 SL
+                return  takeProfitPips * 9; // RR TP 1:9 SL
                 default:
             System.out.println("ERROR calculateStopLoss ");
                    return  takeProfitPips;
@@ -331,7 +344,7 @@ public class CTraderWebSocketClient {
                         ProtoOASymbolsListRes.parseFrom(message.getPayload());
 
                 for (ProtoOALightSymbol symbol : res.getSymbolList()) {
-                    System.out.println("SymbolName: " + symbol.getSymbolName());
+//                    System.out.println("SymbolName: " + symbol.getSymbolName());
                     symbolByName.putIfAbsent(symbol.getSymbolName(), symbol.getSymbolId());
                     symbolById.putIfAbsent(symbol.getSymbolId(),symbol.getSymbolName());
                 }
@@ -348,10 +361,11 @@ public class CTraderWebSocketClient {
                 ProtoOATraderUpdatedEvent event =
                         ProtoOATraderUpdatedEvent.parseFrom(message.getPayload());
 
+
                 accountBalance = event.getTrader().getBalance();
                 accountBalanceHalf = accountBalance / 2;
                 System.out.println("BALANCE = " + accountBalance);
-                System.out.println("BALANCE HALF = " + accountBalanceHalf);
+//                System.out.println("BALANCE HALF = " + accountBalanceHalf);
             }
             break;
 
@@ -369,13 +383,13 @@ public class CTraderWebSocketClient {
 
             // TU beda splywac EVENTY
             case ProtoOAPayloadType.PROTO_OA_SPOT_EVENT_VALUE: {
-                System.out.println("Received PROTO_OA_SPOT_EVENT_VALUE");
+//                System.out.println("Received PROTO_OA_SPOT_EVENT_VALUE");
 
                 ProtoOASpotEvent event = ProtoOASpotEvent.parseFrom(message.getPayload());
 
-                System.out.println("TICK | symboName=" + symbolById.get(event.getSymbolId())
-                                + " BID PRICE=" + event.getBid()
-                                + " ASK=" + event.getAsk());
+//                System.out.println("TICK | symboName=" + symbolById.get(event.getSymbolId())
+//                                + " BID PRICE=" + event.getBid()
+//                                + " ASK=" + event.getAsk());
 
                 lastBid = event.getBid();
                 lastAsk = event.getAsk();
@@ -383,8 +397,8 @@ public class CTraderWebSocketClient {
                 ProtoOASymbol symbol = symbolDetails.get(event.getSymbolId());
 
                 if (symbol != null ) {
-                    System.out.println(" symbol.getDigits()" + symbol.getDigits());
-                    System.out.println(" symbol.getLotSize()" + symbol.getLotSize());
+//                    System.out.println(" symbol.getDigits()" + symbol.getDigits());
+//                    System.out.println(" symbol.getLotSize()" + symbol.getLotSize());
                     symbolDigits.putIfAbsent(symbol.getSymbolId(), symbol.getDigits());
                     symbolLotSize.putIfAbsent(symbol.getSymbolId(), symbol.getLotSize());
                 }
@@ -408,25 +422,33 @@ public class CTraderWebSocketClient {
                 }
                 if (event.hasPosition()) {
                     System.out.println("POSITION ID: " + event.getPosition().getPositionId());
+                    System.out.println("POSITION STATUS: " + event.getPosition().getPositionStatus());
+                    System.out.println("POSITION SL: " + event.getPosition().getStopLoss());
+                    System.out.println("POSITION TP: " + event.getPosition().getTakeProfit());
+                    System.out.println("POSITION PRICE: " + event.getPosition().getPrice());
+                    System.out.println("POSITION SWAP: " + event.getPosition().getSwap());
 
                     long positionId = event.getPosition().getPositionId();
-                    double entry = event.getPosition().getPrice();
-                    long symbolId = event.getPosition().getTradeData().getSymbolId();
 
-                    ProtoOASymbol symbol = symbolDetails.get(symbolId);
-                    double stopLossPips = 20;
-
-                    double sl = entry - (stopLossPips / Math.pow(10, symbol.getDigits()));
-                    double tp = entry + (stopLossPips / Math.pow(10, symbol.getDigits())); // RR 1:1
-
-                    setStopLossAndTakeProfit(positionId, sl, tp);
+//                    ProtoOASymbol symbol = symbolDetails.get(event.getPosition().getTradeData().getSymbolId());
+//
+//                    double stopLossPips = 3;
+//                    double entry = event.getPosition().getPrice();
+//                    double sl = entry - (stopLossPips / Math.pow(10, symbol.getDigits()));
+//                    double tp = entry + (stopLossPips / Math.pow(10, symbol.getDigits())); // RR 1:1
+//
+//                    setStopLossAndTakeProfit(positionId, sl, tp);
 
                 }
             }
             break;
 
             default: {
-                System.out.println("Message type: " + message.getPayloadType() + " payload: " + message.getPayload());
+                if (message != null && message.getPayload() != null && message.getPayloadType() == 2128) {
+                    //ignore to save logs/memore
+                } else {
+                    System.out.println("UNKNOWN Message type: " + message.getPayloadType() + " payload: " + message.getPayload());
+                }
             }
         }
     }
@@ -437,6 +459,25 @@ public class CTraderWebSocketClient {
         }
     }
 
+    public void startGoldSubscription() {
+
+        goldSubscriptionScheduler = Executors.newSingleThreadScheduledExecutor();
+        goldSubscriptionScheduler.scheduleAtFixedRate(() -> {
+            try {
+                System.out.println(">>> XAUUSD subscribe START");
+                System.out.println(">>> XAUUSD unsubscribe");
+                unsubscribeFromSpots(symbolByName.get("XAUUSD"));
+
+                Thread.sleep(1000);
+
+                System.out.println(">>> XAUUSD subscribe");
+                subscribeToTicks(symbolByName.get("XAUUSD"));
+                System.out.println(">>> XAUUSD subscribe END");
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }, 30, 30, TimeUnit.MINUTES);
+    }
 
     public void startHeartbeat() {
         heartbeatScheduler = Executors.newSingleThreadScheduledExecutor();
@@ -456,6 +497,7 @@ public class CTraderWebSocketClient {
         if (heartbeatScheduler != null) {
             heartbeatScheduler.shutdownNow();
         }
+        unsubscribeFromSpots(symbolByName.get("XAUUSD"));
         logout();
     }
 
@@ -487,7 +529,7 @@ public class CTraderWebSocketClient {
     }
 
     private void sendTicksToN8n(double lastBid, double lastAsk, String symbolName) {
-       System.out.println("Sending data to n8n n8nWebhookTicksUrl: " + n8nWebhookTicksUrl);
+//       System.out.println("Sending ticks to n8n n8nWebhookTicksUrl: " + n8nWebhookTicksUrl);
 
         String url = n8nWebhookTicksUrl;
         PriceRequest request = new PriceRequest(lastBid, lastAsk, symbolByName.get(symbolName) ,symbolName);
@@ -499,7 +541,12 @@ public class CTraderWebSocketClient {
 
         ResponseEntity<String> response = restTemplate.postForEntity(url, entity, String.class);
 
-        System.out.println(response.getBody());
+        if (response.getBody().contains("Workflow was started")) {
+            // skip to save memory
+        } else {
+            System.out.println(response.getBody());
+        }
+
     }
 
     private void sendAccountBalanceToN8n(double accountBalance) {
