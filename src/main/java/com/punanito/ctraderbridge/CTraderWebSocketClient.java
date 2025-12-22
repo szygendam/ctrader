@@ -114,7 +114,7 @@ public class CTraderWebSocketClient {
 
                                 sendApplicationAuth();
                                 startHeartbeat();
-                                startGoldSubscription();
+//                                startGoldSubscription();
 
                                 WebSocket.Listener.super.onOpen(webSocket);
                             }
@@ -168,9 +168,17 @@ public class CTraderWebSocketClient {
         ticksWatcher.scheduleAtFixedRate(() -> {
             System.out.println("startTickWatcher");
             if(System.currentTimeMillis() - lastTickTime > 1000) {
+                if(lastTickTime != 0) {
+                    logout();
+                    try {
+                        Thread.sleep(500);
+                    } catch (InterruptedException e) {
+                        throw new RuntimeException(e);
+                    }
+                }
                 connectToN8n();
             }
-        }, 2, 10, TimeUnit.SECONDS);
+        }, 2, 30, TimeUnit.SECONDS);
     }
 
     // Autoryzacja aplikacji
@@ -500,25 +508,25 @@ public class CTraderWebSocketClient {
         }
     }
 
-    public void startGoldSubscription() {
-
-        goldSubscriptionScheduler = Executors.newSingleThreadScheduledExecutor();
-        goldSubscriptionScheduler.scheduleAtFixedRate(() -> {
-            try {
-                System.out.println(">>> XAUUSD subscribe START");
-                System.out.println(">>> XAUUSD unsubscribe");
-                unsubscribeFromSpots(symbolByName.get("XAUUSD"));
-
-                Thread.sleep(1000);
-
-                System.out.println(">>> XAUUSD subscribe");
-                subscribeToTicks(symbolByName.get("XAUUSD"));
-                System.out.println(">>> XAUUSD subscribe END");
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
-        }, 30, 30, TimeUnit.MINUTES);
-    }
+//    public void startGoldSubscription() {
+//
+//        goldSubscriptionScheduler = Executors.newSingleThreadScheduledExecutor();
+//        goldSubscriptionScheduler.scheduleAtFixedRate(() -> {
+//            try {
+//                System.out.println(">>> XAUUSD subscribe START");
+//                System.out.println(">>> XAUUSD unsubscribe");
+//                unsubscribeFromSpots(symbolByName.get("XAUUSD"));
+//
+//                Thread.sleep(1000);
+//
+//                System.out.println(">>> XAUUSD subscribe");
+//                subscribeToTicks(symbolByName.get("XAUUSD"));
+//                System.out.println(">>> XAUUSD subscribe END");
+//            } catch (Exception e) {
+//                e.printStackTrace();
+//            }
+//        }, 30, 30, TimeUnit.MINUTES);
+//    }
 
     public void startHeartbeat() {
         heartbeatScheduler = Executors.newSingleThreadScheduledExecutor();
