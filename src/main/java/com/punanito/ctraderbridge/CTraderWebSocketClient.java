@@ -2,6 +2,7 @@ package com.punanito.ctraderbridge;
 
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.punanito.ctraderbridge.model.AccountRequest;
+import com.punanito.ctraderbridge.model.ConnectRequest;
 import com.punanito.ctraderbridge.model.PriceRequest;
 import com.xtrader.protocol.openapi.v2.ProtoOAAccountAuthReq;
 import com.xtrader.protocol.openapi.v2.ProtoOAAccountLogoutReq;
@@ -36,6 +37,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestTemplate;
 
+import javax.annotation.PostConstruct;
 import javax.annotation.PreDestroy;
 import java.io.ByteArrayOutputStream;
 import java.net.URI;
@@ -76,6 +78,9 @@ public class CTraderWebSocketClient {
 
     @Value("${n8n.webhook.ticks.url}")
     private String n8nWebhookTicksUrl;
+
+    @Value("${n8n.webhook.connect.url}")
+    private String n8nWebhookConnectUrl;
 
     @Value("${n8n.webhook.accountBalance.url}")
     private String n8nWebhookAccountBalanceUrl;
@@ -501,6 +506,11 @@ public class CTraderWebSocketClient {
         logout();
     }
 
+    @PostConstruct
+    public void init() {
+        connectToN8n();
+    }
+
     public void logout() {
         System.out.println("logout ");
         ProtoOAAccountLogoutReq req = ProtoOAAccountLogoutReq.newBuilder()
@@ -538,6 +548,26 @@ public class CTraderWebSocketClient {
         headers.setContentType(MediaType.APPLICATION_JSON);
 
         HttpEntity<PriceRequest> entity = new HttpEntity<>(request, headers);
+
+        ResponseEntity<String> response = restTemplate.postForEntity(url, entity, String.class);
+
+        if (response.getBody().contains("Workflow was started")) {
+            // skip to save memory
+        } else {
+            System.out.println(response.getBody());
+        }
+
+    }
+
+    private void connectToN8n() {
+       System.out.println("Sending connect request n8nWebhookConnectUrl: " + n8nWebhookConnectUrl);
+        String url = n8nWebhookConnectUrl;
+        ConnectRequest request = new ConnectRequest();
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+
+        HttpEntity<ConnectRequest> entity = new HttpEntity<>(request, headers);
 
         ResponseEntity<String> response = restTemplate.postForEntity(url, entity, String.class);
 
