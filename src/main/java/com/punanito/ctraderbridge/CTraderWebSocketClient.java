@@ -3,6 +3,7 @@ package com.punanito.ctraderbridge;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.punanito.ctraderbridge.model.AccountRequest;
 import com.punanito.ctraderbridge.model.ConnectRequest;
+import com.punanito.ctraderbridge.model.PositionRequest;
 import com.punanito.ctraderbridge.model.PriceRequest;
 import com.xtrader.protocol.openapi.v2.ProtoOAAccountAuthReq;
 import com.xtrader.protocol.openapi.v2.ProtoOAAccountLogoutReq;
@@ -64,6 +65,7 @@ public class CTraderWebSocketClient {
     WebSocket webSocket;
     long accountId;
     long lastTickTime = 0;
+    int connectErrorCount = 0;
     private Map<Long, ProtoOASymbol> symbolDetails = new HashMap<>();
     private Map<String, Long> symbolByName = new HashMap<>();
     private Map<Long, String> symbolById = new HashMap<>();
@@ -88,6 +90,9 @@ public class CTraderWebSocketClient {
 
     @Value("${n8n.webhook.accountBalance.url}")
     private String n8nWebhookAccountBalanceUrl;
+
+    @Value("${n8n.webhook.order.url}")
+    private String n8nWebhookOrderUrl;
 
     public void updateAccessToken(String accessToken) {
         ACCESS_TOKEN = accessToken;
@@ -176,9 +181,14 @@ public class CTraderWebSocketClient {
                         throw new RuntimeException(e);
                     }
                 }
-                connectToN8n();
+                if(connectErrorCount < 3) {
+                    connectToN8n();
+                } else {
+                    System.out.println("connectErrorCount > 3 skipping connectToN8n");
+                    logout();
+                }
             }
-        }, 2, 30, TimeUnit.SECONDS);
+        }, 2, 10, TimeUnit.SECONDS);
     }
 
     // Autoryzacja aplikacji
@@ -247,8 +257,8 @@ public class CTraderWebSocketClient {
         webSocket.sendBinary(ByteBuffer.wrap(message.toByteArray()), true);
     }
 
-    private void subscribeToTicks(long symbolId) {
-        System.out.println("subscribeToTicks ");
+    private void subscribeToTicks(long symbolId, String symbolName) {
+        System.out.println("subscribeToTicks " +  symbolName);
         ProtoOASubscribeSpotsReq req = ProtoOASubscribeSpotsReq.newBuilder()
                 .setCtidTraderAccountId(accountId)
                 .addSymbolId(symbolId)
@@ -285,7 +295,7 @@ public class CTraderWebSocketClient {
             double takeProfitPips = 2; //range
 //            double takeProfitPips = 5; // trend
 //            double stopLossPips = calculateStopLoss(takeProfitPips, riskLvl);
-            double stopLossPips = takeProfitPips * 10;
+            double stopLossPips = takeProfitPips * 3;
             long goldId = findSymbolByName("XAUUSD");
             double sl = 0;
             double tp = 0;
@@ -399,7 +409,7 @@ public class CTraderWebSocketClient {
                 System.out.println("Załadowano " + symbolByName.size() + " symboli");
 
                 sendSymbolById(findSymbolByName("XAUUSD"));
-//                sendSymbolById(findSymbolByName("US 500"));
+                sendSymbolById(findSymbolByName("US 500"));
 
             }
             break;
@@ -427,6 +437,7 @@ public class CTraderWebSocketClient {
                 System.out.println("Załadowano " + symbolDetails.size() + " symboli");
 
                 subscribeGold();
+                subscribeUS500();
             }
             break;
 
@@ -468,6 +479,7 @@ public class CTraderWebSocketClient {
                 System.out.println("EXECUTION: " + event.getExecutionType());
                 if (event.hasOrder()) {
                     System.out.println("ORDER ID: " + event.getOrder().getOrderId());
+                    sendOrderToN8n(event.getOrder().getOrderId(), event.getExecutionType().name());
                 }
                 if (event.hasPosition()) {
                     System.out.println("POSITION ID: " + event.getPosition().getPositionId());
@@ -504,7 +516,13 @@ public class CTraderWebSocketClient {
 
     private void subscribeGold() {
         if (!symbolByName.isEmpty() && symbolByName.get("XAUUSD") != null){
-            subscribeToTicks(symbolByName.get("XAUUSD"));
+            subscribeToTicks(symbolByName.get("XAUUSD"), "XAUUSD");
+        }
+    }
+
+    private void subscribeUS500() {
+        if (!symbolByName.isEmpty() && symbolByName.get("US 500") != null){
+            subscribeToTicks(symbolByName.get("US 500"),"US 500");
         }
     }
 
@@ -583,9 +601,10 @@ public class CTraderWebSocketClient {
     }
 
     private void sendTicksToN8n(double lastBid, double lastAsk, String symbolName) {
-//       System.out.println("Sending ticks to n8n n8nWebhookTicksUrl: " + n8nWebhookTicksUrl);
-
         lastTickTime = System.currentTimeMillis();
+        connectErrorCount = 0;
+//       System.out.println("Sending ticks to n8n n8nWebhookTicksUrl: " + n8nWebhookTicksUrl + " lastTickTime: " + lastTickTime);
+
         String url = n8nWebhookTicksUrl;
         PriceRequest request = new PriceRequest(lastBid, lastAsk, symbolByName.get(symbolName) ,symbolName);
 
@@ -604,8 +623,31 @@ public class CTraderWebSocketClient {
 
     }
 
+    private void sendOrderToN8n(long orderId, String orderStatus) {
+        System.out.println("sendOrderToN8n " + orderStatus);
+        String url = n8nWebhookOrderUrl;
+        PositionRequest request = new PositionRequest();
+        request.setPositionId(orderId);
+        request.setStatus(orderStatus);
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+
+        HttpEntity<PositionRequest> entity = new HttpEntity<>(request, headers);
+
+        ResponseEntity<String> response = restTemplate.postForEntity(url, entity, String.class);
+
+        if (response.getBody().contains("Workflow was started")) {
+            // skip to save memory
+        } else {
+            System.out.println(response.getBody());
+        }
+
+    }
+
     private void connectToN8n() {
        System.out.println("Sending connect request n8nWebhookConnectUrl: " + n8nWebhookConnectUrl);
+        connectErrorCount++; // zakladamy ze sie nie uda bo w response dostajemy jedynie {"message":"Workflow was started"} -  odebranie tick zeruje connectErrorCount
         String url = n8nWebhookConnectUrl;
         ConnectRequest request = new ConnectRequest();
 
@@ -616,11 +658,7 @@ public class CTraderWebSocketClient {
 
         ResponseEntity<String> response = restTemplate.postForEntity(url, entity, String.class);
 
-        if (response.getBody().contains("Workflow was started")) {
-            // skip to save memory
-        } else {
-            System.out.println(response.getBody());
-        }
+        System.out.println(response.getBody());
 
     }
 

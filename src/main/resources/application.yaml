@@ -9,3 +9,5 @@ n8n:
       url: "http://localhost:5678/webhook/db517cb7-c70d-4d73-b2d1-a942ee842488"
     connect:
         url: "http://localhost:5678/webhook/f84eb900-ec11-4043-b063-2e0f46d0f119"
+    order:
+        url: "http://localhost:5678/webhook/92a0363e-d630-4bd4-b311-5614fb55bf72"
