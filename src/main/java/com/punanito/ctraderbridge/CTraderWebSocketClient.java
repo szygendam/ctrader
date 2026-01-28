@@ -433,11 +433,16 @@ public class CTraderWebSocketClient {
                 for (ProtoOASymbol protoOASymbol : event.getSymbolList()) {
                     symbolDetails.putIfAbsent(protoOASymbol.getSymbolId(), protoOASymbol);
                     System.out.println("protoOASymbol.getSymbolId() " + protoOASymbol.getSymbolId());
+                    switch ((int) protoOASymbol.getSymbolId()){
+                        case 41:
+                            subscribeGold();
+                            break;
+                        case 21499:
+                            subscribeUS500();
+                            break;
+                    }
                 }
-                System.out.println("Załadowano " + symbolDetails.size() + " symboli");
-
-                subscribeGold();
-                subscribeUS500();
+//                System.out.println("Załadowano " + symbolDetails.size() + " symboli");
             }
             break;
 
@@ -565,6 +570,7 @@ public class CTraderWebSocketClient {
             heartbeatScheduler.shutdownNow();
         }
         unsubscribeFromSpots(symbolByName.get("XAUUSD"));
+        unsubscribeFromSpots(symbolByName.get("US 500"));
         logout();
     }
 
