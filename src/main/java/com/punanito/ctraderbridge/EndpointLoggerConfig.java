@@ -1,5 +1,7 @@
 package com.punanito.ctraderbridge;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.Bean;
@@ -9,6 +11,8 @@ import org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandl
 @Configuration
 public class EndpointLoggerConfig {
 
+    private static final Logger logger = LoggerFactory.getLogger(EndpointLoggerConfig.class);
+
     @Bean
     public CommandLineRunner logEndpoints(ApplicationContext ctx) {
         return args -> {
@@ -16,7 +20,7 @@ public class EndpointLoggerConfig {
             RequestMappingHandlerMapping mapping =
                     ctx.getBean(RequestMappingHandlerMapping.class);
 
-            System.out.println("\n===== LIST OF ALL ENDPOINTS =====\n");
+            logger.info("\n===== LIST OF ALL ENDPOINTS =====\n");
 
             mapping.getHandlerMethods().forEach((info, method) -> {
 
@@ -28,7 +32,7 @@ public class EndpointLoggerConfig {
                     info.getPathPatternsCondition().getPatterns()
                             .forEach(pattern -> info.getMethodsCondition().getMethods()
                                     .forEach(httpMethod ->
-                                            System.out.printf("%-6s %-40s %s#%s%n",
+                                            logger.info("{} {} {} {} ",
                                                     httpMethod,
                                                     pattern.getPatternString(),
                                                     className,
@@ -43,7 +47,7 @@ public class EndpointLoggerConfig {
                     info.getPatternsCondition().getPatterns()
                             .forEach(url -> info.getMethodsCondition().getMethods()
                                     .forEach(httpMethod ->
-                                            System.out.printf("%-6s %-40s %s#%s%n",
+                                            logger.info("%-6s %-40s %s#%s%n",
                                                     httpMethod,
                                                     url,
                                                     className,
@@ -55,7 +59,7 @@ public class EndpointLoggerConfig {
 
             });
 
-            System.out.println("\n=================================\n");
+            logger.info("\n=================================\n");
         };
     }
 }
