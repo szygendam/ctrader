@@ -2,22 +2,33 @@ package com.punanito.ctraderbridge.model;
 
 
 public class OrderRequest {
-    private Boolean buy;
+    private String operation;
     private String messageId;
-    private String riskLvl;
+    private String orderId;
     private long id;
+    private double sl;
+    private double tp;
     private String status;
 
-    public boolean isBuy() {
-        return Boolean.TRUE.equals(buy);
-    }
 
     public String getMessageId() {
         return messageId;
     }
 
-    public String getRiskLvl() {
-        return riskLvl;
+    public String getOperation() {
+        return operation;
+    }
+
+    public double getSl() {
+        return sl;
+    }
+
+    public double getTp() {
+        return tp;
+    }
+
+    public String getOrderId() {
+        return orderId;
     }
 
 }

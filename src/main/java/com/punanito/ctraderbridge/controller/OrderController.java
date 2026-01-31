@@ -25,9 +25,16 @@ public class OrderController {
     }
 
     @PostMapping("/new")
-    public ResponseEntity<Void> connect(@RequestBody OrderRequest orderRequest) {
-        logger.info("Received new order request");
-        webSocketClient.sendGoldOrder(orderRequest.isBuy(),orderRequest.getMessageId(), orderRequest.getRiskLvl());
+    public ResponseEntity<Void> newOrder(@RequestBody OrderRequest orderRequest) {
+        logger.info("Received new order request: isBuy {} messageId {} ", orderRequest.getOperation(), orderRequest.getMessageId());
+        webSocketClient.sendGoldOrder(orderRequest.getOperation(),orderRequest.getMessageId());
+        return ResponseEntity.ok().build();
+    }
+
+    @PostMapping("/protect")
+    public ResponseEntity<Void> protect(@RequestBody OrderRequest orderRequest) {
+        logger.info("Protect order request: operation {} messageId {} ", orderRequest.getOperation(), orderRequest.getMessageId());
+        webSocketClient.protect(orderRequest.getSl(),orderRequest.getTp(),orderRequest.getOrderId());
         return ResponseEntity.ok().build();
     }
 }
