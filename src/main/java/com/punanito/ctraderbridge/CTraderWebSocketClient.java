@@ -192,7 +192,7 @@ public class CTraderWebSocketClient {
                     logout();
                 }
             }
-        }, 2, 10, TimeUnit.SECONDS);
+        }, 2, 20, TimeUnit.SECONDS);
     }
 
     // Autoryzacja aplikacji
@@ -538,6 +538,9 @@ public class CTraderWebSocketClient {
     }
 
     public void startHeartbeat() {
+        if (heartbeatScheduler != null) {
+            heartbeatScheduler.shutdownNow();
+        }
         heartbeatScheduler = Executors.newSingleThreadScheduledExecutor();
         heartbeatScheduler.scheduleAtFixedRate(() -> {
             try {
