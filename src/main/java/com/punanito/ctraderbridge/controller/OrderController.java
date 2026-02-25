@@ -26,15 +26,20 @@ public class OrderController {
 
     @PostMapping("/new")
     public ResponseEntity<Void> newOrder(@RequestBody OrderRequest orderRequest) {
-        logger.info("Received new order request: isBuy {} messageId {} ", orderRequest.getOperation(), orderRequest.getMessageId());
-        webSocketClient.sendGoldOrder(orderRequest.getOperation(),orderRequest.getMessageId());
+        logger.info("Received new order request: isBuy {} message {} ", orderRequest.getOperation(), orderRequest.getMessage());
+        webSocketClient.sendGoldOrder(orderRequest.getOperation(),orderRequest.getMessage());
         return ResponseEntity.ok().build();
     }
 
     @PostMapping("/protect")
     public ResponseEntity<Void> protect(@RequestBody OrderRequest orderRequest) {
-        logger.info("Protect order request: operation {} messageId {} ", orderRequest.getOperation(), orderRequest.getMessageId());
-        webSocketClient.protect(orderRequest.getSl(),orderRequest.getTp(),orderRequest.getOrderId());
+        webSocketClient.protect(orderRequest.getSl(),orderRequest.getTp(),orderRequest.getPositionId());
+        return ResponseEntity.ok().build();
+    }
+
+    @PostMapping("/close")
+    public ResponseEntity<Void> close(@RequestBody OrderRequest orderRequest) {
+        webSocketClient.close(orderRequest.getPositionId());
         return ResponseEntity.ok().build();
     }
 }

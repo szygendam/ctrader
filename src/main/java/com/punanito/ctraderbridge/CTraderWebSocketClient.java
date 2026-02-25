@@ -10,6 +10,7 @@ import com.xtrader.protocol.openapi.v2.ProtoOAAccountAuthReq;
 import com.xtrader.protocol.openapi.v2.ProtoOAAccountLogoutReq;
 import com.xtrader.protocol.openapi.v2.ProtoOAAmendPositionSLTPReq;
 import com.xtrader.protocol.openapi.v2.ProtoOAApplicationAuthReq;
+import com.xtrader.protocol.openapi.v2.ProtoOAClosePositionReq;
 import com.xtrader.protocol.openapi.v2.ProtoOAExecutionEvent;
 import com.xtrader.protocol.openapi.v2.ProtoOAGetAccountListByAccessTokenReq;
 import com.xtrader.protocol.openapi.v2.ProtoOAGetAccountListByAccessTokenRes;
@@ -22,6 +23,7 @@ import com.xtrader.protocol.openapi.v2.ProtoOASymbolsListReq;
 import com.xtrader.protocol.openapi.v2.ProtoOASymbolsListRes;
 import com.xtrader.protocol.openapi.v2.ProtoOATraderUpdatedEvent;
 import com.xtrader.protocol.openapi.v2.ProtoOAUnsubscribeSpotsReq;
+import com.xtrader.protocol.openapi.v2.model.ProtoOAExecutionType;
 import com.xtrader.protocol.openapi.v2.model.ProtoOALightSymbol;
 import com.xtrader.protocol.openapi.v2.model.ProtoOAOrder;
 import com.xtrader.protocol.openapi.v2.model.ProtoOAOrderType;
@@ -282,43 +284,43 @@ public class CTraderWebSocketClient {
         send(req, ProtoOAPayloadType.PROTO_OA_UNSUBSCRIBE_SPOTS_REQ_VALUE);
     }
 
-    public void sendGoldOrder(String operation, String messageId) {
+    public void sendGoldOrder(String operation, String message) {
         logger.info("sendGoldOrder");
         boolean isBuy = operation.equals("LONG");
         if (accountBalanceHalf > 0) {
 
-            double takeProfitPips = 2; //range
+            double takeProfitPips = 4; //range
 //            double takeProfitPips = 5; // trend
 //            double stopLossPips = calculateStopLoss(takeProfitPips);
             double stopLossPips = takeProfitPips * 3;
             long goldId = findSymbolByName("XAUUSD");
-            double sl = 0;
-            double tp = 0;
-
-            double entry;
-            if (isBuy) {
-                entry = lastAsk; // cena, po której ktoś chce sprzedać, czyli Ty jako kupujący musisz ją zaakceptować.
-                sl = entry - (stopLossPips / Math.pow(10, symbolDigits.get(goldId)));
-                tp = entry + (takeProfitPips / Math.pow(10, symbolDigits.get(goldId)));
-            } else {
-                entry = lastBid; // cena, po której ktoś chce kupić, a Ty sprzedajesz po tej ofercie.
-                sl = entry + (stopLossPips / Math.pow(10, symbolDigits.get(goldId)));
-                tp = entry - (takeProfitPips / Math.pow(10, symbolDigits.get(goldId)));
-            }
+//            double sl = 0;
+//            double tp = 0;
+//
+//            double entry;
+//            if (isBuy) {
+//                entry = lastAsk; // cena, po której ktoś chce sprzedać, czyli Ty jako kupujący musisz ją zaakceptować.
+//                sl = entry - (stopLossPips / Math.pow(10, symbolDigits.get(goldId)));
+//                tp = entry + (takeProfitPips / Math.pow(10, symbolDigits.get(goldId)));
+//            } else {
+//                entry = lastBid; // cena, po której ktoś chce kupić, a Ty sprzedajesz po tej ofercie.
+//                sl = entry + (stopLossPips / Math.pow(10, symbolDigits.get(goldId)));
+//                tp = entry - (takeProfitPips / Math.pow(10, symbolDigits.get(goldId)));
+//            }
 
 //            long volume = calculateDynamicVolume(symbolLotSize.get(goldId), stopLossPips);
             long volume = 100;
 
-            logger.info("NEW Entry=" + entry + " SL=" + sl + " TP=" + tp + " Vol=" + volume);
+//            logger.info("NEW Entry=" + entry + " SL=" + sl + " TP=" + tp + " Vol=" + volume);
 //            ProtoOASymbol xauusd = symbolDetails.get(41);
 //            logger.info("XAUUSD =" + xauusd.toString());
-            sendMarketOrder(goldId, isBuy, volume, messageId);
+            sendMarketOrder(goldId, isBuy, volume, message);
         }
     }
 
 
-    private void sendMarketOrder(long symbolId, boolean isBuy, long volume, String messageId) {
-        logger.info("sendMarketOrder ");
+    private void sendMarketOrder(long symbolId, boolean isBuy, long volume, String message) {
+        logger.info("sendMarketOrder message: {} volume: {}", message, volume);
 
         ProtoOANewOrderReq req = ProtoOANewOrderReq.newBuilder()
                 .setCtidTraderAccountId(accountId)
@@ -328,43 +330,31 @@ public class CTraderWebSocketClient {
                         ? ProtoOATradeSide.BUY
                         : ProtoOATradeSide.SELL)
                 .setVolume(volume)
-                .setClientOrderId(messageId)
+                .setClientOrderId(message)
                 .build();
+        send(req, ProtoOAPayloadType.PROTO_OA_NEW_ORDER_REQ_VALUE);
     }
 
 
-    public void protect(double sl, double tp, String orderId) {
-        logger.info("protect ");
+    public void protect(double sl, double tp, long positionId) {
+        logger.info("protect sl:{}, tp:{}, positionId:{} ", sl, tp, positionId);
 
-        ProtoOAOrder req = ProtoOAOrder.newBuilder()
-                .setOrderId(Long.parseLong(orderId))
+        ProtoOAAmendPositionSLTPReq req = ProtoOAAmendPositionSLTPReq.newBuilder()
                 .setStopLoss(sl)
                 .setTakeProfit(tp)
-                .build();
-
-        send(req, ProtoOAPayloadType.PROTO_OA_AMEND_ORDER_REQ_VALUE);
-    }
-
-    public void setStopLossAndTakeProfit(long positionId, double stopLoss, double takeProfit) {
-        logger.info("setStopLossAndTakeProfit ");
-        ProtoOAAmendPositionSLTPReq req = ProtoOAAmendPositionSLTPReq.newBuilder()
-                .setCtidTraderAccountId(accountId)
                 .setPositionId(positionId)
-                .setStopLoss(stopLoss)
-                .setTakeProfit(takeProfit)
+                .setCtidTraderAccountId(accountId)
                 .build();
 
         send(req, ProtoOAPayloadType.PROTO_OA_AMEND_POSITION_SLTP_REQ_VALUE);
     }
-
-
 
     // 📥 Odbieranie wiadomości
     private void handleMessage(ProtoMessage message) throws InvalidProtocolBufferException {
 
         switch (message.getPayloadType()) {
 
-            case ProtoOAPayloadType.PROTO_OA_APPLICATION_AUTH_RES_VALUE:  {
+            case ProtoOAPayloadType.PROTO_OA_APPLICATION_AUTH_RES_VALUE: {
                 logger.info("Received PROTO_OA_APPLICATION_AUTH_RES_VALUE");
                 logger.info("Application authenticated ✅");
                 sendGetAccountList();
@@ -391,7 +381,7 @@ public class CTraderWebSocketClient {
             }
             break;
 
-            case ProtoOAPayloadType.PROTO_OA_SYMBOLS_LIST_RES_VALUE:  {
+            case ProtoOAPayloadType.PROTO_OA_SYMBOLS_LIST_RES_VALUE: {
                 logger.info("Received PROTO_OA_SYMBOLS_LIST_RES_VALUE");
 
                 ProtoOASymbolsListRes res =
@@ -400,12 +390,12 @@ public class CTraderWebSocketClient {
                 for (ProtoOALightSymbol symbol : res.getSymbolList()) {
 //                    logger.info("SymbolName: " + symbol.getSymbolName());
                     symbolByName.putIfAbsent(symbol.getSymbolName(), symbol.getSymbolId());
-                    symbolById.putIfAbsent(symbol.getSymbolId(),symbol.getSymbolName());
+                    symbolById.putIfAbsent(symbol.getSymbolId(), symbol.getSymbolName());
                 }
                 logger.info("Załadowano " + symbolByName.size() + " symboli");
 
                 sendSymbolById(findSymbolByName("XAUUSD"));
-                sendSymbolById(findSymbolByName("US 500"));
+//                sendSymbolById(findSymbolByName("US 500"));
 
             }
             break;
@@ -428,8 +418,8 @@ public class CTraderWebSocketClient {
                 ProtoOASymbolByIdRes event = ProtoOASymbolByIdRes.parseFrom(message.getPayload());
                 for (ProtoOASymbol protoOASymbol : event.getSymbolList()) {
                     symbolDetails.putIfAbsent(protoOASymbol.getSymbolId(), protoOASymbol);
-                    logger.info("protoOASymbol.getSymbolId() {} lotSize {} maxVolume {} mixVolume {} digits {} getMeasurementUnits {} ", protoOASymbol.getSymbolId(), protoOASymbol.getLotSize(),protoOASymbol.getMaxVolume(),protoOASymbol.getMinVolume(), protoOASymbol.getDigits(), protoOASymbol.getMeasurementUnits());
-                    switch ((int) protoOASymbol.getSymbolId()){
+                    logger.info("protoOASymbol.getSymbolId() {} lotSize {} maxVolume {} mixVolume {} digits {} getMeasurementUnits {} ", protoOASymbol.getSymbolId(), protoOASymbol.getLotSize(), protoOASymbol.getMaxVolume(), protoOASymbol.getMinVolume(), protoOASymbol.getDigits(), protoOASymbol.getMeasurementUnits());
+                    switch ((int) protoOASymbol.getSymbolId()) {
                         case 41:
                             subscribeGold();
                             break;
@@ -457,33 +447,39 @@ public class CTraderWebSocketClient {
 
                 ProtoOASymbol symbol = symbolDetails.get(event.getSymbolId());
 
-                if (symbol != null ) {
+                if (symbol != null) {
 //                    logger.info(" symbol.getDigits()" + symbol.getDigits());
 //                    logger.info(" symbol.getLotSize()" + symbol.getLotSize());
                     symbolDigits.putIfAbsent(symbol.getSymbolId(), symbol.getDigits());
                     symbolLotSize.putIfAbsent(symbol.getSymbolId(), symbol.getLotSize());
                 }
 
-                sendTicksToN8n(lastBid, lastAsk ,symbolById.get(event.getSymbolId()));
+                sendTicksToN8n(lastBid, lastAsk, symbolById.get(event.getSymbolId()));
             }
 
             case ProtoOAPayloadType.PROTO_OA_EXECUTION_EVENT_VALUE: {
                 ProtoOAExecutionEvent event = null;
                 try {
-                     event = ProtoOAExecutionEvent.parseFrom(message.getPayload());
+                    event = ProtoOAExecutionEvent.parseFrom(message.getPayload());
                     logger.info("Received PROTO_OA_EXECUTION_EVENT_VALUE");
                 } catch (InvalidProtocolBufferException e) {
 //                    logger.info("Received empty PROTO_OA_EXECUTION_EVENT_VALUE - ignoring");
                     break;
                 }
 
+                if(event.getExecutionType() == ProtoOAExecutionType.ORDER_REPLACED){
+                    logger.debug("Received PROTO_OA_EXECUTION_EVENT_VALUE ORDER REPLACED");
+                    return;
+                }
                 logger.info("EXECUTION: " + event.getExecutionType());
+                double execPrice = 0.0;
                 if (event.hasOrder()) {
                     logger.info("ORDER ID: " + event.getOrder().getOrderId());
-                    if(event.hasPosition()){
+                    if (event.hasPosition()) {
                         logger.info("ORDER STOP PRICE: " + event.getOrder().getStopPrice());
                         logger.info("ORDER CLIENT ID: " + event.getOrder().getClientOrderId());
                         logger.info("ORDER EXECUTION PRICE: " + event.getOrder().getExecutionPrice());
+                        execPrice = event.getOrder().getExecutionPrice();
                         logger.info("ORDER STOP PRICE: " + event.getOrder().getStopPrice());
                         logger.info("ORDER ISS TOP OUT: " + event.getOrder().getIsStopOut());
                         logger.info("ORDER SL: " + event.getOrder().getStopLoss());
@@ -491,6 +487,7 @@ public class CTraderWebSocketClient {
                         logger.info("ORDER STATUS: " + event.getOrder().getOrderStatus());
                     }
                 }
+
                 if (event.hasPosition()) {
                     logger.info("POSITION ID: " + event.getPosition().getPositionId());
                     logger.info("POSITION STATUS: " + event.getPosition().getPositionStatus());
@@ -510,7 +507,9 @@ public class CTraderWebSocketClient {
                             event.getOrder().getOrderStatus().name(),
                             event.getPosition().getPrice(),
                             event.getPosition().getStopLoss(),
-                            event.getPosition().getTakeProfit());
+                            event.getPosition().getTakeProfit(),
+                            execPrice
+                    );
                 }
             }
             break;
@@ -518,7 +517,7 @@ public class CTraderWebSocketClient {
             default: {
                 if (message != null && message.getPayload() != null && message.getPayloadType() == 2128) {
                     //ignore to save logs/memore
-                } else {
+                } else  {
                     logger.info("UNKNOWN Message type: " + message.getPayloadType() + " payload: " + message.getPayload());
                 }
             }
@@ -578,19 +577,6 @@ public class CTraderWebSocketClient {
     }
 
 
-    private long calculateDynamicVolume(Long  lotSize,  double stopLossPips) {
-        double riskPercent = 10.0;
-        double riskAmount = accountBalanceHalf * (riskPercent / 100.0);
-
-        double pipValue = 1.0; //XAU, BTC
-
-        double lots = riskAmount / (stopLossPips * pipValue);
-        double units = lots * lotSize;
-
-        return Math.max(1000, Math.round(units));
-    }
-
-
     public Long findSymbolByName(String name) {
         return symbolByName.get(name);
     }
@@ -618,20 +604,12 @@ public class CTraderWebSocketClient {
 
     }
 
-    private void sendOrderToN8n(long orderId, long positionId, String clientId, String executionType, String positionStatus, String orderStatus, double priceOpen, double sl, double tp) {
+    private void sendOrderToN8n(long orderId, long positionId, String clientId, String executionType, String positionStatus,
+                                String orderStatus, double priceOpen, double sl, double tp, double execPrice) {
         logger.info("sendOrderToN8n " + orderStatus);
         String url = n8nWebhookOrderUrl;
-        PositionRequest request = new PositionRequest();
-        request.setPositionId(positionId);
-        request.setOrderId(orderId);
-        request.setPosistionStatus(positionStatus);
-        request.setOrderStatus(orderStatus);
-        request.setExecutionType(executionType);
-        request.setClientId(clientId);
-        request.setPriceOpen(priceOpen);
-        request.setTp(tp);
-        request.setSl(sl);
-
+        PositionRequest request = new PositionRequest(positionId, clientId,orderId,positionStatus,orderStatus,executionType,clientId,priceOpen,tp,sl, execPrice);
+        logger.info("PositionRequest: {}", request);
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
 
@@ -681,5 +659,15 @@ public class CTraderWebSocketClient {
     }
 
 
+    public void close(long positionId) {
+            logger.info("close positionId:{} ", positionId);
 
-}
+            ProtoOAClosePositionReq req = ProtoOAClosePositionReq.newBuilder()
+                    .setPositionId(positionId)
+                    .setCtidTraderAccountId(accountId)
+                    .build();
+
+            send(req, ProtoOAPayloadType.PROTO_OA_CLOSE_POSITION_REQ_VALUE);
+        }
+    }
+

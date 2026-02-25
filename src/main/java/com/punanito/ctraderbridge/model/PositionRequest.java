@@ -6,10 +6,31 @@ public class PositionRequest {
     private double sl;
     private double tp;
     private double priceOpen;
+    private double priceClose;
     private String clientId;
     private String positionStatus;
     private String orderStatus;
     private String executionType;
+
+    public PositionRequest(long positionId, String clientId, long orderId, String positionStatus, String orderStatus,
+                           String executionType, String clientId1, double priceOpen, double tp, double sl, double execPrice) {
+        this.positionId = positionId;
+        this.clientId = clientId;
+        this.orderId = orderId;
+        this.positionStatus = positionStatus;
+        this.orderStatus = orderStatus;
+        this.executionType = executionType;
+        this.clientId = clientId1;
+        this.priceClose = execPrice;
+        this.priceOpen = priceOpen;
+        this.tp = tp;
+        this.sl = sl;
+    }
+
+    public PositionRequest(long positionId) {
+        this.positionId = positionId;
+    }
+
 
     public void setPositionId(long positionId) {
         this.positionId = positionId;
@@ -79,5 +100,14 @@ public class PositionRequest {
     }
     public void setPositionStatus(String status) {
         this.positionStatus = status;
+    }
+    public double getPriceClose() {
+        return priceClose;
+    }
+    public void setPriceClose(double priceClose) {
+        this.priceClose = priceClose;
+    }
+    public void setOrderStatus(long orderId) {
+        this.orderId = orderId;
     }
 }
