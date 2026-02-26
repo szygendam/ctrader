@@ -23,13 +23,13 @@ public class RestTemplateConfig {
     public RestTemplate restTemplate() {
         // --- Pool połączeń ---
         PoolingHttpClientConnectionManager cm = new PoolingHttpClientConnectionManager();
-        cm.setMaxTotal(200);            // max wszystkich połączeń
+        cm.setMaxTotal(50);            // max wszystkich połączeń
         cm.setDefaultMaxPerRoute(50);   // max na jeden host (route)
 
         // --- Timeouty (ms) ---
-        int connectTimeoutMs = 3_000;              // handshake TCP
-        int connectionRequestTimeoutMs = 2_000;    // czekanie na połączenie z puli
-        int socketReadTimeoutMs = 10_000;          // read timeout
+        int connectTimeoutMs = 500;              // handshake TCP
+        int connectionRequestTimeoutMs = 100;    // czekanie na połączenie z puli
+        int socketReadTimeoutMs = 500;          // read timeout
 
         RequestConfig requestConfig = RequestConfig.custom()
                 .setConnectTimeout(connectTimeoutMs)
