@@ -1,11 +1,7 @@
 package com.punanito.ctraderbridge;
 
 import com.google.protobuf.InvalidProtocolBufferException;
-import com.punanito.ctraderbridge.controller.ConnectionController;
-import com.punanito.ctraderbridge.model.AccountRequest;
-import com.punanito.ctraderbridge.model.ConnectRequest;
-import com.punanito.ctraderbridge.model.PositionRequest;
-import com.punanito.ctraderbridge.model.PriceRequest;
+import com.punanito.ctraderbridge.service.N8nService;
 import com.xtrader.protocol.openapi.v2.ProtoOAAccountAuthReq;
 import com.xtrader.protocol.openapi.v2.ProtoOAAccountLogoutReq;
 import com.xtrader.protocol.openapi.v2.ProtoOAAmendPositionSLTPReq;
@@ -25,7 +21,6 @@ import com.xtrader.protocol.openapi.v2.ProtoOATraderUpdatedEvent;
 import com.xtrader.protocol.openapi.v2.ProtoOAUnsubscribeSpotsReq;
 import com.xtrader.protocol.openapi.v2.model.ProtoOAExecutionType;
 import com.xtrader.protocol.openapi.v2.model.ProtoOALightSymbol;
-import com.xtrader.protocol.openapi.v2.model.ProtoOAOrder;
 import com.xtrader.protocol.openapi.v2.model.ProtoOAOrderType;
 import com.xtrader.protocol.openapi.v2.model.ProtoOAPayloadType;
 import com.xtrader.protocol.openapi.v2.model.ProtoOASymbol;
@@ -36,13 +31,7 @@ import com.xtrader.protocol.proto.commons.model.ProtoPayloadType;
 import org.apache.logging.log4j.util.Strings;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.http.HttpEntity;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.MediaType;
-import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Component;
-import org.springframework.web.client.RestTemplate;
 
 import javax.annotation.PostConstruct;
 import javax.annotation.PreDestroy;
@@ -63,10 +52,10 @@ import java.util.concurrent.TimeUnit;
 public class CTraderWebSocketClient {
 
     private static final Logger logger = LoggerFactory.getLogger(CTraderWebSocketClient.class);
-
     private static String ACCESS_TOKEN = Strings.EMPTY;
     private static String CLIENT_ID = Strings.EMPTY;
     private static String CLIENT_SECRET = Strings.EMPTY;
+
 
     WebSocket webSocket;
     long accountId;
@@ -82,23 +71,14 @@ public class CTraderWebSocketClient {
     private double lastBid = 0;
     private double lastAsk = 0;
     private ScheduledExecutorService heartbeatScheduler;
-    private ScheduledExecutorService goldSubscriptionScheduler;
     private ScheduledExecutorService ticksWatcher;
-    private RestTemplate restTemplate = new RestTemplate();
-    private final ByteArrayOutputStream buffer = new ByteArrayOutputStream();
 
 
-    @Value("${n8n.webhook.ticks.url}")
-    private String n8nWebhookTicksUrl;
+    private final N8nService n8nService;
 
-    @Value("${n8n.webhook.connect.url}")
-    private String n8nWebhookConnectUrl;
-
-    @Value("${n8n.webhook.accountBalance.url}")
-    private String n8nWebhookAccountBalanceUrl;
-
-    @Value("${n8n.webhook.order.url}")
-    private String n8nWebhookOrderUrl;
+    public CTraderWebSocketClient(N8nService n8nService) {
+        this.n8nService = n8nService;
+    }
 
     public void updateAccessToken(String accessToken) {
         ACCESS_TOKEN = accessToken;
@@ -188,7 +168,7 @@ public class CTraderWebSocketClient {
                     }
                 }
                 if (connectErrorCount < 3) {
-                    connectToN8n();
+                    n8nService.connectToN8n();
                 } else {
                     logger.info("connectErrorCount > 3 skipping connectToN8n");
                     logout();
@@ -454,7 +434,10 @@ public class CTraderWebSocketClient {
                     symbolLotSize.putIfAbsent(symbol.getSymbolId(), symbol.getLotSize());
                 }
 
-                sendTicksToN8n(lastBid, lastAsk, symbolById.get(event.getSymbolId()));
+                lastTickTime = System.currentTimeMillis();
+                connectErrorCount = 0;
+                String symbolName = symbolById.get(event.getSymbolId());
+                n8nService.sendTicksToN8n(lastBid, lastAsk, symbolName, symbolByName.get(symbolName));
             }
 
             case ProtoOAPayloadType.PROTO_OA_EXECUTION_EVENT_VALUE: {
@@ -499,7 +482,7 @@ public class CTraderWebSocketClient {
                     logger.info("POSITION MARGIN RATE: " + event.getPosition().getMarginRate());
                     logger.info("POSITION USED MARGIN: " + event.getPosition().getUsedMargin());
 
-                    sendOrderToN8n(event.getOrder().getOrderId(),
+                    n8nService.sendOrderToN8n(event.getOrder().getOrderId(),
                             event.getPosition().getPositionId(),
                             event.getOrder().getClientOrderId(),
                             event.getExecutionType().name(),
@@ -581,82 +564,7 @@ public class CTraderWebSocketClient {
         return symbolByName.get(name);
     }
 
-    private void sendTicksToN8n(double lastBid, double lastAsk, String symbolName) {
-        lastTickTime = System.currentTimeMillis();
-        connectErrorCount = 0;
-//       logger.info("Sending ticks to n8n n8nWebhookTicksUrl: " + n8nWebhookTicksUrl + " lastTickTime: " + lastTickTime);
 
-        String url = n8nWebhookTicksUrl;
-        PriceRequest request = new PriceRequest(lastBid, lastAsk, symbolByName.get(symbolName) ,symbolName);
-
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.APPLICATION_JSON);
-
-        HttpEntity<PriceRequest> entity = new HttpEntity<>(request, headers);
-
-        ResponseEntity<String> response = restTemplate.postForEntity(url, entity, String.class);
-
-        if (response.getBody().contains("Workflow was started")) {
-            // skip to save memory
-        } else {
-            logger.info(response.getBody());
-        }
-
-    }
-
-    private void sendOrderToN8n(long orderId, long positionId, String clientId, String executionType, String positionStatus,
-                                String orderStatus, double priceOpen, double sl, double tp, double execPrice) {
-        logger.info("sendOrderToN8n " + orderStatus);
-        String url = n8nWebhookOrderUrl;
-        PositionRequest request = new PositionRequest(positionId, clientId,orderId,positionStatus,orderStatus,executionType,clientId,priceOpen,tp,sl, execPrice);
-        logger.info("PositionRequest: {}", request);
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.APPLICATION_JSON);
-
-        HttpEntity<PositionRequest> entity = new HttpEntity<>(request, headers);
-
-        ResponseEntity<String> response = restTemplate.postForEntity(url, entity, String.class);
-
-        if (response.getBody().contains("Workflow was started")) {
-            // skip to save memory
-        } else {
-            logger.info(response.getBody());
-        }
-
-    }
-
-    private void connectToN8n() {
-       logger.info("Sending connect request n8nWebhookConnectUrl: " + n8nWebhookConnectUrl);
-        connectErrorCount++; // zakladamy ze sie nie uda bo w response dostajemy jedynie {"message":"Workflow was started"} -  odebranie tick zeruje connectErrorCount
-        String url = n8nWebhookConnectUrl;
-        ConnectRequest request = new ConnectRequest();
-
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.APPLICATION_JSON);
-
-        HttpEntity<ConnectRequest> entity = new HttpEntity<>(request, headers);
-
-        ResponseEntity<String> response = restTemplate.postForEntity(url, entity, String.class);
-
-        logger.info(response.getBody());
-
-    }
-
-    private void sendAccountBalanceToN8n(double accountBalance) {
-        logger.info("Sending account balance to n8n n8nWebhookAccountBalanceUrl: " + n8nWebhookAccountBalanceUrl);
-
-        String url = n8nWebhookAccountBalanceUrl;
-        AccountRequest request = new AccountRequest(accountBalance);
-
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.APPLICATION_JSON);
-
-        HttpEntity<AccountRequest> entity = new HttpEntity<>(request, headers);
-
-        ResponseEntity<String> response = restTemplate.postForEntity(url, entity, String.class);
-
-        logger.info(response.getBody());
-    }
 
 
     public void close(long positionId) {
