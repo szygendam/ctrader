@@ -158,11 +158,11 @@ public class CTraderWebSocketClient {
         ticksWatcher = Executors.newScheduledThreadPool(1);
         ticksWatcher.scheduleAtFixedRate(() -> {
             logger.info("startTickWatcher");
-            if (System.currentTimeMillis() - lastTickTime > 2000) {
+            if (System.currentTimeMillis() - lastTickTime > 4000) {
                 if (lastTickTime != 0) {
                     logout();
                     try {
-                        Thread.sleep(500);
+                        Thread.sleep(1000);
                     } catch (InterruptedException e) {
                         throw new RuntimeException(e);
                     }
@@ -170,7 +170,7 @@ public class CTraderWebSocketClient {
                 if (connectErrorCount < 3) {
                     n8nService.connectToN8n();
                 } else {
-                    logger.info("connectErrorCount > 3 skipping connectToN8n");
+                    logger.info("connectErrorCount >= 3 skipping connectToN8n");
                     logout();
                 }
             }
@@ -375,7 +375,7 @@ public class CTraderWebSocketClient {
                 logger.info("Załadowano " + symbolByName.size() + " symboli");
 
                 sendSymbolById(findSymbolByName("XAUUSD"));
-//                sendSymbolById(findSymbolByName("US 500"));
+                sendSymbolById(findSymbolByName("US 500"));
 
             }
             break;
@@ -398,7 +398,7 @@ public class CTraderWebSocketClient {
                 ProtoOASymbolByIdRes event = ProtoOASymbolByIdRes.parseFrom(message.getPayload());
                 for (ProtoOASymbol protoOASymbol : event.getSymbolList()) {
                     symbolDetails.putIfAbsent(protoOASymbol.getSymbolId(), protoOASymbol);
-                    logger.info("protoOASymbol.getSymbolId() {} lotSize {} maxVolume {} mixVolume {} digits {} getMeasurementUnits {} ", protoOASymbol.getSymbolId(), protoOASymbol.getLotSize(), protoOASymbol.getMaxVolume(), protoOASymbol.getMinVolume(), protoOASymbol.getDigits(), protoOASymbol.getMeasurementUnits());
+                    logger.info("protoOASymbol.getSymbolId() {} lotSize {} maxVolume {} minVolume {} digits {} getMeasurementUnits {} ", protoOASymbol.getSymbolId(), protoOASymbol.getLotSize(), protoOASymbol.getMaxVolume(), protoOASymbol.getMinVolume(), protoOASymbol.getDigits(), protoOASymbol.getMeasurementUnits());
                     switch ((int) protoOASymbol.getSymbolId()) {
                         case 41:
                             subscribeGold();
@@ -502,6 +502,13 @@ public class CTraderWebSocketClient {
                     //ignore to save logs/memore
                 } else  {
                     logger.info("UNKNOWN Message type: " + message.getPayloadType() + " payload: " + message.getPayload());
+                    if(message.getPayload().toStringUtf8().contains("ACCOUNT_NOT_AUTHORIZED")){
+                        // turn off heartbeat
+                        stopHeartbeat();
+                        // logout
+                        logout();
+                        System.exit(0);
+                    }
                 }
             }
         }
