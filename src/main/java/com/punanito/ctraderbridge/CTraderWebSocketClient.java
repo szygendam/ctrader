@@ -1,6 +1,7 @@
 package com.punanito.ctraderbridge;
 
 import com.google.protobuf.InvalidProtocolBufferException;
+import com.punanito.ctraderbridge.model.PositionDto;
 import com.punanito.ctraderbridge.service.N8nService;
 import com.xtrader.protocol.openapi.v2.ProtoOAAccountAuthReq;
 import com.xtrader.protocol.openapi.v2.ProtoOAAccountLogoutReq;
@@ -36,6 +37,8 @@ import org.springframework.stereotype.Component;
 import javax.annotation.PostConstruct;
 import javax.annotation.PreDestroy;
 import java.io.ByteArrayOutputStream;
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.WebSocket;
@@ -66,6 +69,7 @@ public class CTraderWebSocketClient {
     private Map<Long, String> symbolById = new HashMap<>();
     private Map<Long, Integer> symbolDigits = new HashMap<>();
     private Map<Long, Long> symbolLotSize = new HashMap<>();
+    private Map<Long, PositionDto> positionMap = new HashMap<>();
     private double accountBalance = 0.0;
     private double accountBalanceHalf = 500;
     private double lastBid = 0;
@@ -318,15 +322,34 @@ public class CTraderWebSocketClient {
 
     public void protect(double sl, double tp, long positionId) {
         logger.info("protect sl:{}, tp:{}, positionId:{} ", sl, tp, positionId);
-
+        positionMap.putIfAbsent(positionId, new PositionDto(sl,tp));
         ProtoOAAmendPositionSLTPReq req = ProtoOAAmendPositionSLTPReq.newBuilder()
-                .setStopLoss(sl)
-                .setTakeProfit(tp)
+                .setStopLoss(normalizePrice(sl,2))
+                .setTakeProfit(normalizePrice(tp,2))
                 .setPositionId(positionId)
                 .setCtidTraderAccountId(accountId)
                 .build();
 
         send(req, ProtoOAPayloadType.PROTO_OA_AMEND_POSITION_SLTP_REQ_VALUE);
+    }
+
+    public void reProtect(double sl, double tp, long positionId) {
+        logger.info("repeat protect sl:{}, tp:{}, positionId:{} ", sl, tp, positionId);
+
+        ProtoOAAmendPositionSLTPReq req = ProtoOAAmendPositionSLTPReq.newBuilder()
+                .setStopLoss(normalizePrice(sl,2))
+                .setTakeProfit(normalizePrice(tp,2))
+                .setPositionId(positionId)
+                .setCtidTraderAccountId(accountId)
+                .build();
+
+        send(req, ProtoOAPayloadType.PROTO_OA_AMEND_POSITION_SLTP_REQ_VALUE);
+    }
+
+    private double normalizePrice(double price, int digits) {
+        return BigDecimal.valueOf(price)
+                .setScale(digits, RoundingMode.HALF_UP)
+                .doubleValue();
     }
 
     // 📥 Odbieranie wiadomości
@@ -375,7 +398,7 @@ public class CTraderWebSocketClient {
                 logger.info("Załadowano " + symbolByName.size() + " symboli");
 
                 sendSymbolById(findSymbolByName("XAUUSD"));
-                sendSymbolById(findSymbolByName("US 500"));
+//                sendSymbolById(findSymbolByName("US 500"));
 
             }
             break;
@@ -429,7 +452,6 @@ public class CTraderWebSocketClient {
 
                 if (symbol != null) {
 //                    logger.info(" symbol.getDigits()" + symbol.getDigits());
-//                    logger.info(" symbol.getLotSize()" + symbol.getLotSize());
                     symbolDigits.putIfAbsent(symbol.getSymbolId(), symbol.getDigits());
                     symbolLotSize.putIfAbsent(symbol.getSymbolId(), symbol.getLotSize());
                 }
@@ -509,6 +531,9 @@ public class CTraderWebSocketClient {
                         logout();
                         System.exit(0);
                     }
+                    if(message.getPayload().toStringUtf8().contains("TRADING_BAD_STOPS")){
+//                        reProtect();
+                    }
                 }
             }
         }
@@ -548,7 +573,7 @@ public class CTraderWebSocketClient {
             heartbeatScheduler.shutdownNow();
         }
         unsubscribeFromSpots(symbolByName.get("XAUUSD"));
-        unsubscribeFromSpots(symbolByName.get("US 500"));
+//        unsubscribeFromSpots(symbolByName.get("US 500"));
         logout();
     }
 
