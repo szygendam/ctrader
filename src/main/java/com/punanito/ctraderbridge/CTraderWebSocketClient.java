@@ -89,7 +89,7 @@ public class CTraderWebSocketClient {
     }
 
     public void connect(String clientId, String clientSecret, String accessToken) {
-
+//        logger.info("connect input req param " + clientId +  " " + clientSecret + " " + accessToken);
         CLIENT_ID = clientId;
         CLIENT_SECRET = clientSecret;
         ACCESS_TOKEN = accessToken;
@@ -184,12 +184,16 @@ public class CTraderWebSocketClient {
     // Autoryzacja aplikacji
     private void sendApplicationAuth() {
         logger.info("sendApplicationAuth");
-        ProtoOAApplicationAuthReq req = ProtoOAApplicationAuthReq.newBuilder()
-                .setClientId(CLIENT_ID)
-                .setClientSecret(CLIENT_SECRET)
-                .build();
-
-        send(req, ProtoOAPayloadType.PROTO_OA_APPLICATION_AUTH_REQ_VALUE);
+        try {
+            ProtoOAApplicationAuthReq req = ProtoOAApplicationAuthReq.newBuilder()
+                    .setClientId(CLIENT_ID)
+                    .setClientSecret(CLIENT_SECRET)
+                    .build();
+            send(req, ProtoOAPayloadType.PROTO_OA_APPLICATION_AUTH_REQ_VALUE);
+        } catch (Exception e) {
+            logger.error("sendApplicationAuth failed", e);
+            throw e;
+        }
     }
 
     // Pobranie symbolList

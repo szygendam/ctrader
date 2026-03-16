@@ -34,6 +34,7 @@ public class ConnectionController {
     public ResponseEntity<Void> logout() {
         logger.info("logout request");
         webSocketClient.logout();
+        System.exit(0);
         return ResponseEntity.ok().build();
     }
 }

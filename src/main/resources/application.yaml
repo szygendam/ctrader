@@ -11,3 +11,11 @@ n8n:
         url: "http://localhost:5678/webhook/f84eb900-ec11-4043-b063-2e0f46d0f119"
     order:
         url: "http://localhost:5678/webhook/92a0363e-d630-4bd4-b311-5614fb55bf72"
+
+logging:
+  level:
+    org.springframework.web.client.RestTemplate: WARN
+    org.springframework.http.converter: WARN
+    org.springframework.web.*: INFO
+    org.springframework: INFO
+

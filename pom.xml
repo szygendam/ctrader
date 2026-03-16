@@ -39,7 +39,7 @@
         <dependency>
             <groupId>com.google.protobuf</groupId>
             <artifactId>protobuf-java</artifactId>
-            <version>4.33.1</version>
+            <version>4.34.0</version>
         </dependency>
         <dependency>
             <groupId>javax.annotation</groupId>
@@ -48,8 +48,8 @@
         </dependency>
         <dependency>
             <groupId>com.spotware.openapi2</groupId>
-            <artifactId>spotware-openapi2</artifactId>
-            <version>1.0.0</version>
+            <artifactId>openapi2-client</artifactId>
+            <version>1.0-SNAPSHOT</version>
         </dependency>
 <!--        <dependency>-->
 <!--            <groupId>org.projectlombok</groupId>-->
@@ -71,9 +71,25 @@
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
                 <configuration>
-                    <source>11</source>
-                    <target>11</target>
+                    <source>17</source>
+                    <target>17</target>
                 </configuration>
+            </plugin>
+            <plugin>
+                <groupId>com.github.os72</groupId>
+                <artifactId>protoc-jar-maven-plugin</artifactId>
+                <version>3.11.4</version>
+                <executions>
+                    <execution>
+                        <phase>generate-sources</phase>
+                        <goals>
+                            <goal>run</goal>
+                        </goals>
+                        <configuration>
+                            <protocCommand>/opt/homebrew/bin/protoc</protocCommand>
+                        </configuration>
+                    </execution>
+                </executions>
             </plugin>
         </plugins>
     </build>
