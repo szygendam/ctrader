@@ -6,7 +6,7 @@
 
     <groupId>com.punanito</groupId>
     <artifactId>ctrader.bridge</artifactId>
-    <version>1.0.0</version>
+    <version>1.0.1</version>
     <name>cTrader Bridge</name>
     <description>Bridge service for cTrader Open API v2</description>
 
@@ -66,6 +66,13 @@
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
                 <version>3.1.0</version> <!-- lub zgodna z Twoją wersją Spring Boot -->
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>repackage</goal>
+                        </goals>
+                    </execution>
+                </executions>
             </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>

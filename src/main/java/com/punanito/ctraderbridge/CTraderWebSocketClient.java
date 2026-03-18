@@ -248,7 +248,11 @@ public class CTraderWebSocketClient {
                 .setPayload(payload.toByteString())
                 .build();
 
-        webSocket.sendBinary(ByteBuffer.wrap(message.toByteArray()), true);
+        if(webSocket != null) {
+            webSocket.sendBinary(ByteBuffer.wrap(message.toByteArray()), true);
+        } else {
+            logger.warn("trying send  " + payloadType + " to websocket but websocket is null");
+        }
     }
 
     private void subscribeToTicks(long symbolId, String symbolName) {
