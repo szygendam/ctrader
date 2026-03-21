@@ -42,4 +42,10 @@ public class OrderController {
         webSocketClient.close(orderRequest.getPositionId());
         return ResponseEntity.ok().build();
     }
+
+    @PostMapping("/closeNotProtected")
+    public ResponseEntity<Void> closeNotProtected() {
+        webSocketClient.closeNotProtected();
+        return ResponseEntity.ok().build();
+    }
 }

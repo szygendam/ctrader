@@ -3,29 +3,8 @@ package com.punanito.ctraderbridge;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.punanito.ctraderbridge.model.PositionDto;
 import com.punanito.ctraderbridge.service.N8nService;
-import com.xtrader.protocol.openapi.v2.ProtoOAAccountAuthReq;
-import com.xtrader.protocol.openapi.v2.ProtoOAAccountLogoutReq;
-import com.xtrader.protocol.openapi.v2.ProtoOAAmendPositionSLTPReq;
-import com.xtrader.protocol.openapi.v2.ProtoOAApplicationAuthReq;
-import com.xtrader.protocol.openapi.v2.ProtoOAClosePositionReq;
-import com.xtrader.protocol.openapi.v2.ProtoOAExecutionEvent;
-import com.xtrader.protocol.openapi.v2.ProtoOAGetAccountListByAccessTokenReq;
-import com.xtrader.protocol.openapi.v2.ProtoOAGetAccountListByAccessTokenRes;
-import com.xtrader.protocol.openapi.v2.ProtoOANewOrderReq;
-import com.xtrader.protocol.openapi.v2.ProtoOASpotEvent;
-import com.xtrader.protocol.openapi.v2.ProtoOASubscribeSpotsReq;
-import com.xtrader.protocol.openapi.v2.ProtoOASymbolByIdReq;
-import com.xtrader.protocol.openapi.v2.ProtoOASymbolByIdRes;
-import com.xtrader.protocol.openapi.v2.ProtoOASymbolsListReq;
-import com.xtrader.protocol.openapi.v2.ProtoOASymbolsListRes;
-import com.xtrader.protocol.openapi.v2.ProtoOATraderUpdatedEvent;
-import com.xtrader.protocol.openapi.v2.ProtoOAUnsubscribeSpotsReq;
-import com.xtrader.protocol.openapi.v2.model.ProtoOAExecutionType;
-import com.xtrader.protocol.openapi.v2.model.ProtoOALightSymbol;
-import com.xtrader.protocol.openapi.v2.model.ProtoOAOrderType;
-import com.xtrader.protocol.openapi.v2.model.ProtoOAPayloadType;
-import com.xtrader.protocol.openapi.v2.model.ProtoOASymbol;
-import com.xtrader.protocol.openapi.v2.model.ProtoOATradeSide;
+import com.xtrader.protocol.openapi.v2.*;
+import com.xtrader.protocol.openapi.v2.model.*;
 import com.xtrader.protocol.proto.commons.ProtoHeartbeatEvent;
 import com.xtrader.protocol.proto.commons.ProtoMessage;
 import com.xtrader.protocol.proto.commons.model.ProtoPayloadType;
@@ -76,6 +55,8 @@ public class CTraderWebSocketClient {
     private double lastAsk = 0;
     private ScheduledExecutorService heartbeatScheduler;
     private ScheduledExecutorService ticksWatcher;
+    private ScheduledExecutorService unprotectedPositionWatcher;
+    private boolean tradingBadStops = false;
 
 
     private final N8nService n8nService;
@@ -179,6 +160,15 @@ public class CTraderWebSocketClient {
                 }
             }
         }, 2, 20, TimeUnit.SECONDS);
+    }
+
+    private void startUnprotectedPositionWatcher() {
+
+        unprotectedPositionWatcher = Executors.newScheduledThreadPool(1);
+        unprotectedPositionWatcher.scheduleAtFixedRate(() -> {
+            logger.info("start unprotectedPositionWatcher");
+            closeNotProtected();
+        }, 1, 1, TimeUnit.MINUTES);
     }
 
     // Autoryzacja aplikacji
@@ -372,6 +362,30 @@ public class CTraderWebSocketClient {
             }
             break;
 
+            case ProtoOAPayloadType.PROTO_OA_RECONCILE_RES_VALUE: {
+                logger.info("Received PROTO_OA_RECONCILE_RES_VALUE");
+                ProtoOAReconcileRes res = ProtoOAReconcileRes.parseFrom(message.getPayload());
+                logger.info("res " + res.toString());
+                logger.info("res  getOrderCount"  + res.getOrderCount());
+
+
+                for (ProtoOAPosition protoOAPosition : res.getPositionList()) {
+                    logger.info("position " + protoOAPosition.toString());
+                    if(!protoOAPosition.hasStopLoss()) {
+                        close(protoOAPosition.getPositionId());
+                    }
+
+                }
+
+//                for (ProtoOAOrder protoOAOrder : res.getOrderList()) {
+//                    logger.info("protoOAOrder " + protoOAOrder.toString());
+//                    if (!protoOAOrder.hasStopLoss() ){
+//                        close(protoOAOrder.getPositionId());
+//                    }
+//                }
+            }
+            break;
+
             case ProtoOAPayloadType.PROTO_OA_GET_ACCOUNTS_BY_ACCESS_TOKEN_RES_VALUE: {
                 logger.info("Received PROTO_OA_GET_ACCOUNTS_BY_ACCESS_TOKEN_RES_VALUE");
                 ProtoOAGetAccountListByAccessTokenRes res =
@@ -502,6 +516,10 @@ public class CTraderWebSocketClient {
                 }
 
                 if (event.hasPosition()) {
+                    if(tradingBadStops){
+                        close(event.getPosition().getPositionId());
+                        tradingBadStops = false;
+                    }
                     logger.info("POSITION ID: " + event.getPosition().getPositionId());
                     logger.info("POSITION STATUS: " + event.getPosition().getPositionStatus());
                     logger.info("POSITION SL: " + event.getPosition().getStopLoss());
@@ -540,7 +558,7 @@ public class CTraderWebSocketClient {
                         System.exit(0);
                     }
                     if(message.getPayload().toStringUtf8().contains("TRADING_BAD_STOPS")){
-//                        reProtect();
+                        tradingBadStops = true;
                     }
                 }
             }
@@ -588,6 +606,7 @@ public class CTraderWebSocketClient {
     @PostConstruct
     public void init() {
         startTickWatcher();
+        startUnprotectedPositionWatcher();
     }
 
     public void logout() {
@@ -613,9 +632,19 @@ public class CTraderWebSocketClient {
             ProtoOAClosePositionReq req = ProtoOAClosePositionReq.newBuilder()
                     .setPositionId(positionId)
                     .setCtidTraderAccountId(accountId)
+                    .setVolume(100)
                     .build();
 
             send(req, ProtoOAPayloadType.PROTO_OA_CLOSE_POSITION_REQ_VALUE);
         }
+
+    public void closeNotProtected() {
+
+        ProtoOAReconcileReq req = ProtoOAReconcileReq.newBuilder()
+                .setCtidTraderAccountId(accountId)
+                .build();
+
+        send(req, ProtoOAPayloadType.PROTO_OA_RECONCILE_REQ_VALUE);
+    }
     }
 
