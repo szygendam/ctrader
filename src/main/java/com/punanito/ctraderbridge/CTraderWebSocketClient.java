@@ -29,6 +29,7 @@ import java.util.concurrent.CompletionStage;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicLong;
 
 @Component
 public class CTraderWebSocketClient {
@@ -56,7 +57,7 @@ public class CTraderWebSocketClient {
     private ScheduledExecutorService heartbeatScheduler;
     private ScheduledExecutorService ticksWatcher;
     private ScheduledExecutorService unprotectedPositionWatcher;
-    private boolean tradingBadStops = false;
+    private AtomicLong lastPosition = new AtomicLong(0);
 
 
     private final N8nService n8nService;
@@ -74,6 +75,13 @@ public class CTraderWebSocketClient {
         CLIENT_ID = clientId;
         CLIENT_SECRET = clientSecret;
         ACCESS_TOKEN = accessToken;
+
+        positionMap.clear();
+        symbolLotSize.clear();
+        symbolByName.clear();
+        symbolById.clear();
+        symbolDigits.clear();
+        lastPosition.set(0);
 
         HttpClient.newHttpClient()
                 .newWebSocketBuilder()
@@ -167,7 +175,7 @@ public class CTraderWebSocketClient {
         unprotectedPositionWatcher = Executors.newScheduledThreadPool(1);
         unprotectedPositionWatcher.scheduleAtFixedRate(() -> {
             logger.info("start unprotectedPositionWatcher");
-            closeNotProtected();
+            reconcile();
         }, 1, 1, TimeUnit.MINUTES);
     }
 
@@ -266,15 +274,11 @@ public class CTraderWebSocketClient {
         send(req, ProtoOAPayloadType.PROTO_OA_UNSUBSCRIBE_SPOTS_REQ_VALUE);
     }
 
-    public void sendGoldOrder(String operation, String message) {
+    public void sendGoldOrder(String operation, String message, double tp, double sl) {
         logger.info("sendGoldOrder");
         boolean isBuy = operation.equals("LONG");
         if (accountBalanceHalf > 0) {
 
-            double takeProfitPips = 4; //range
-//            double takeProfitPips = 5; // trend
-//            double stopLossPips = calculateStopLoss(takeProfitPips);
-            double stopLossPips = takeProfitPips * 3;
             long goldId = findSymbolByName("XAUUSD");
 //            double sl = 0;
 //            double tp = 0;
@@ -296,12 +300,12 @@ public class CTraderWebSocketClient {
 //            logger.info("NEW Entry=" + entry + " SL=" + sl + " TP=" + tp + " Vol=" + volume);
 //            ProtoOASymbol xauusd = symbolDetails.get(41);
 //            logger.info("XAUUSD =" + xauusd.toString());
-            sendMarketOrder(goldId, isBuy, volume, message);
+            sendMarketOrder(goldId, isBuy, volume, message, tp, sl);
         }
     }
 
 
-    private void sendMarketOrder(long symbolId, boolean isBuy, long volume, String message) {
+    private void sendMarketOrder(long symbolId, boolean isBuy, long volume, String message,double tp, double sl) {
         logger.info("sendMarketOrder message: {} volume: {}", message, volume);
 
         ProtoOANewOrderReq req = ProtoOANewOrderReq.newBuilder()
@@ -313,6 +317,8 @@ public class CTraderWebSocketClient {
                         : ProtoOATradeSide.SELL)
                 .setVolume(volume)
                 .setClientOrderId(message)
+                .setTakeProfit(tp)
+                .setStopLoss(sl)
                 .build();
         send(req, ProtoOAPayloadType.PROTO_OA_NEW_ORDER_REQ_VALUE);
     }
@@ -516,10 +522,6 @@ public class CTraderWebSocketClient {
                 }
 
                 if (event.hasPosition()) {
-                    if(tradingBadStops){
-                        close(event.getPosition().getPositionId());
-                        tradingBadStops = false;
-                    }
                     logger.info("POSITION ID: " + event.getPosition().getPositionId());
                     logger.info("POSITION STATUS: " + event.getPosition().getPositionStatus());
                     logger.info("POSITION SL: " + event.getPosition().getStopLoss());
@@ -558,7 +560,7 @@ public class CTraderWebSocketClient {
                         System.exit(0);
                     }
                     if(message.getPayload().toStringUtf8().contains("TRADING_BAD_STOPS")){
-                        tradingBadStops = true;
+                        close(lastPosition.get());
                     }
                 }
             }
@@ -638,7 +640,7 @@ public class CTraderWebSocketClient {
             send(req, ProtoOAPayloadType.PROTO_OA_CLOSE_POSITION_REQ_VALUE);
         }
 
-    public void closeNotProtected() {
+    public void reconcile() {
 
         ProtoOAReconcileReq req = ProtoOAReconcileReq.newBuilder()
                 .setCtidTraderAccountId(accountId)

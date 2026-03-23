@@ -1,7 +1,6 @@
 package com.punanito.ctraderbridge.controller;
 
 import com.punanito.ctraderbridge.CTraderWebSocketClient;
-import com.punanito.ctraderbridge.model.ConnectRequest;
 import com.punanito.ctraderbridge.model.OrderRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -27,7 +26,7 @@ public class OrderController {
     @PostMapping("/new")
     public ResponseEntity<Void> newOrder(@RequestBody OrderRequest orderRequest) {
         logger.info("Received new order request: isBuy {} message {} ", orderRequest.getOperation(), orderRequest.getMessage());
-        webSocketClient.sendGoldOrder(orderRequest.getOperation(),orderRequest.getMessage());
+        webSocketClient.sendGoldOrder(orderRequest.getOperation(),orderRequest.getMessage(),orderRequest.getTp(),orderRequest.getSl());
         return ResponseEntity.ok().build();
     }
 
@@ -45,7 +44,7 @@ public class OrderController {
 
     @PostMapping("/closeNotProtected")
     public ResponseEntity<Void> closeNotProtected() {
-        webSocketClient.closeNotProtected();
+        webSocketClient.reconcile();
         return ResponseEntity.ok().build();
     }
 }
