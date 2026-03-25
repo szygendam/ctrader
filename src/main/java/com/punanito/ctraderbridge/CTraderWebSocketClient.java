@@ -29,6 +29,7 @@ import java.util.concurrent.CompletionStage;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 
 @Component
@@ -58,6 +59,7 @@ public class CTraderWebSocketClient {
     private ScheduledExecutorService ticksWatcher;
     private ScheduledExecutorService unprotectedPositionWatcher;
     private AtomicLong lastPosition = new AtomicLong(0);
+    private AtomicBoolean javaScalperEnabled = new AtomicBoolean(false);
 
 
     private final N8nService n8nService;
@@ -443,14 +445,12 @@ public class CTraderWebSocketClient {
                             acc.getCtidTraderAccountId(),
                             acc.getIsLive(),
                             acc.getBrokerTitleShort());
+                    if(!acc.getIsLive() && acc.getBrokerTitleShort().equals("Pepperstone - Europe")) {
+                        accountId =  acc.getCtidTraderAccountId();
+                        logger.info("Wybrano konto: " + accountId);
+                    }
                 }
 
-                for (ProtoOACtidTraderAccount protoOACtidTraderAccount : res.getCtidTraderAccountList()) {
-                    logger.info("accountId: " + protoOACtidTraderAccount.getCtidTraderAccountId());
-                    logger.info("getIsLive: " + protoOACtidTraderAccount.getIsLive());
-                }
-                accountId = res.getCtidTraderAccountList().get(0).getCtidTraderAccountId();
-                logger.info("Wybrano konto: " + accountId);
 
                 sendAccountAuth();
             }
@@ -539,6 +539,12 @@ public class CTraderWebSocketClient {
                 lastTickTime = System.currentTimeMillis();
                 connectErrorCount = 0;
                 String symbolName = symbolById.get(event.getSymbolId());
+                if(symbolName != null && symbolName.equals("XAUUSD") && javaScalperEnabled.get()) {
+                    if(scalperCondition()){
+//                        sendMarketOrder();
+                        javaScalperEnabled.set(false);
+                    }
+                }
                 n8nService.sendTicksToN8n(lastBid, lastAsk, symbolName, symbolByName.get(symbolName));
             }
 
@@ -617,6 +623,13 @@ public class CTraderWebSocketClient {
                 }
             }
         }
+    }
+
+    private boolean scalperCondition() {
+//        if (bodyAbs()){
+//
+//        }
+        return false;
     }
 
     private void subscribeGold() {
