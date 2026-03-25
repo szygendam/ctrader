@@ -306,8 +306,7 @@ public class CTraderWebSocketClient {
 
 
     private void sendMarketOrder(long symbolId, boolean isBuy, long volume, String message,double tp, double sl) {
-        logger.info("sendMarketOrder message: {} volume: {}", message, volume);
-
+        logger.info("sendMarketOrder message: {} volume: {} sl: {} tp: {} ", message, volume,sl,tp);
         ProtoOANewOrderReq req = ProtoOANewOrderReq.newBuilder()
                 .setCtidTraderAccountId(accountId)
                 .setSymbolId(symbolId)
@@ -317,8 +316,8 @@ public class CTraderWebSocketClient {
                         : ProtoOATradeSide.SELL)
                 .setVolume(volume)
                 .setClientOrderId(message)
-                .setTakeProfit(tp)
-                .setStopLoss(sl)
+//                .setTakeProfit(tp)
+//                .setStopLoss(sl)
                 .build();
         send(req, ProtoOAPayloadType.PROTO_OA_NEW_ORDER_REQ_VALUE);
     }
@@ -327,6 +326,7 @@ public class CTraderWebSocketClient {
     public void protect(double sl, double tp, long positionId) {
         logger.info("protect sl:{}, tp:{}, positionId:{} ", sl, tp, positionId);
         positionMap.putIfAbsent(positionId, new PositionDto(sl,tp));
+        lastPosition.set(positionId);
         ProtoOAAmendPositionSLTPReq req = ProtoOAAmendPositionSLTPReq.newBuilder()
                 .setStopLoss(normalizePrice(sl,2))
                 .setTakeProfit(normalizePrice(tp,2))
@@ -397,6 +397,10 @@ public class CTraderWebSocketClient {
                 ProtoOAGetAccountListByAccessTokenRes res =
                         ProtoOAGetAccountListByAccessTokenRes.parseFrom(message.getPayload());
 
+                for (ProtoOACtidTraderAccount protoOACtidTraderAccount : res.getCtidTraderAccountList()) {
+                    logger.info("accountId: " + protoOACtidTraderAccount.getCtidTraderAccountId());
+                    logger.info("accountId: " + protoOACtidTraderAccount.getLastClosingDealTimestamp());
+                }
                 accountId = res.getCtidTraderAccountList().get(0).getCtidTraderAccountId();
                 logger.info("Wybrano konto: " + accountId);
 
