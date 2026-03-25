@@ -37,4 +37,12 @@ public class ConnectionController {
         System.exit(0);
         return ResponseEntity.ok().build();
     }
+
+    @PostMapping(value="stop", consumes = "application/json", produces = "application/json")
+    public ResponseEntity<Void> stop() {
+        logger.info("stop request");
+        webSocketClient.stop();
+        System.exit(0);
+        return ResponseEntity.ok().build();
+    }
 }

@@ -379,6 +379,11 @@ public class CTraderWebSocketClient {
 
         switch (message.getPayloadType()) {
 
+            case ProtoOAPayloadType.PROTO_OA_ERROR_RES_VALUE:{
+                logger.error("Received PROTO_OA_ERROR_RES_VALUE");
+            }
+            break;
+
             case ProtoOAPayloadType.PROTO_OA_VERSION_RES_VALUE: {
                 logger.info("Received PROTO_OA_VERSION_RES_VALUE");
                 ProtoOAVersionRes res = ProtoOAVersionRes.parseFrom(message.getPayload());
@@ -419,10 +424,12 @@ public class CTraderWebSocketClient {
                 logger.info("Received PROTO_OA_GET_ACCOUNTS_BY_ACCESS_TOKEN_RES_VALUE");
                 ProtoOAGetAccountListByAccessTokenRes res =
                         ProtoOAGetAccountListByAccessTokenRes.parseFrom(message.getPayload());
+                logger.info("after payload map: {}", res);
+                logger.info("etCtidTraderAccountList().size()): {}", res.getCtidTraderAccountList().size());
 
                 for (ProtoOACtidTraderAccount protoOACtidTraderAccount : res.getCtidTraderAccountList()) {
                     logger.info("accountId: " + protoOACtidTraderAccount.getCtidTraderAccountId());
-                    logger.info("accountId: " + protoOACtidTraderAccount.getLastClosingDealTimestamp());
+                    logger.info("getIsLive: " + protoOACtidTraderAccount.getIsLive());
                 }
                 accountId = res.getCtidTraderAccountList().get(0).getCtidTraderAccountId();
                 logger.info("Wybrano konto: " + accountId);
@@ -581,7 +588,7 @@ public class CTraderWebSocketClient {
                     logger.info("UNKNOWN Message type: " + message.getPayloadType() + " payload: " + message.getPayload());
                     if(message.getPayload().toStringUtf8().contains("ACCOUNT_NOT_AUTHORIZED")){
                         // turn off heartbeat
-                        stopHeartbeat();
+                        stop();
                         // logout
                         logout();
                         System.exit(0);
@@ -623,9 +630,15 @@ public class CTraderWebSocketClient {
     }
 
     @PreDestroy
-    public void stopHeartbeat() {
+    public void stop() {
         if (heartbeatScheduler != null) {
             heartbeatScheduler.shutdownNow();
+        }
+        if (ticksWatcher != null) {
+            ticksWatcher.shutdownNow();
+        }
+        if (unprotectedPositionWatcher != null) {
+            unprotectedPositionWatcher.shutdownNow();
         }
         unsubscribeFromSpots(symbolByName.get("XAUUSD"));
 //        unsubscribeFromSpots(symbolByName.get("US 500"));
