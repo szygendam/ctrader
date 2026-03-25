@@ -379,6 +379,13 @@ public class CTraderWebSocketClient {
 
         switch (message.getPayloadType()) {
 
+            case ProtoOAPayloadType.PROTO_OA_VERSION_RES_VALUE: {
+                logger.info("Received PROTO_OA_VERSION_RES_VALUE");
+                ProtoOAVersionRes res = ProtoOAVersionRes.parseFrom(message.getPayload());
+                logger.info("Version response: {}", res);
+            }
+            break;
+
             case ProtoOAPayloadType.PROTO_OA_APPLICATION_AUTH_RES_VALUE: {
                 logger.info("Received PROTO_OA_APPLICATION_AUTH_RES_VALUE");
                 logger.info("Application authenticated ✅");
