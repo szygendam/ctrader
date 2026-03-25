@@ -431,6 +431,20 @@ public class CTraderWebSocketClient {
                 logger.info("after payload map: {}", res);
                 logger.info("etCtidTraderAccountList().size()): {}", res.getCtidTraderAccountList().size());
 
+                logger.info("accountId: {} ", res.getCtidTraderAccountCount());
+                if (res.getCtidTraderAccountList().isEmpty()) {
+                    logger.error("CASE 1: token jest poprawny, ale nie ma żadnych autoryzowanych kont");
+                    logger.error("Zatrzymuję flow. Nie wysyłam AccountAuth.");
+                    return;
+                }
+
+                for (ProtoOACtidTraderAccount acc : res.getCtidTraderAccountList()) {
+                    logger.info("Account: id={}, isLive={}, brokerName={}",
+                            acc.getCtidTraderAccountId(),
+                            acc.getIsLive(),
+                            acc.getBrokerTitleShort());
+                }
+
                 for (ProtoOACtidTraderAccount protoOACtidTraderAccount : res.getCtidTraderAccountList()) {
                     logger.info("accountId: " + protoOACtidTraderAccount.getCtidTraderAccountId());
                     logger.info("getIsLive: " + protoOACtidTraderAccount.getIsLive());
