@@ -390,8 +390,6 @@ public class CTraderWebSocketClient {
                 logger.info("Received PROTO_OA_RECONCILE_RES_VALUE");
                 ProtoOAReconcileRes res = ProtoOAReconcileRes.parseFrom(message.getPayload());
                 logger.info("res " + res.toString());
-                logger.info("res  getOrderCount"  + res.getOrderCount());
-
 
                 for (ProtoOAPosition protoOAPosition : res.getPositionList()) {
                     logger.info("position " + protoOAPosition.toString());
