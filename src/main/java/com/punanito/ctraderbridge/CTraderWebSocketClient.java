@@ -82,11 +82,13 @@ public class CTraderWebSocketClient {
         symbolById.clear();
         symbolDigits.clear();
         lastPosition.set(0);
+        String ctraderUrl = "wss://demo.ctraderapi.com:5035";
+        logger.info("Connecting to ctraderapi.com {}", ctraderUrl);
 
         HttpClient.newHttpClient()
                 .newWebSocketBuilder()
                 .buildAsync(
-                        URI.create("wss://demo.ctraderapi.com:5035"),
+                        URI.create(ctraderUrl),
                         new WebSocket.Listener() {
 
                             private final ByteArrayOutputStream buffer = new ByteArrayOutputStream();
@@ -307,19 +309,35 @@ public class CTraderWebSocketClient {
 
     private void sendMarketOrder(long symbolId, boolean isBuy, long volume, String message,double tp, double sl) {
         logger.info("sendMarketOrder message: {} volume: {} sl: {} tp: {} ", message, volume,sl,tp);
-        ProtoOANewOrderReq req = ProtoOANewOrderReq.newBuilder()
-                .setCtidTraderAccountId(accountId)
-                .setSymbolId(symbolId)
-                .setOrderType(ProtoOAOrderType.MARKET)
-                .setTradeSide(isBuy
-                        ? ProtoOATradeSide.BUY
-                        : ProtoOATradeSide.SELL)
-                .setVolume(volume)
-                .setClientOrderId(message)
-//                .setTakeProfit(tp)
-//                .setStopLoss(sl)
-                .build();
-        send(req, ProtoOAPayloadType.PROTO_OA_NEW_ORDER_REQ_VALUE);
+        if(tp != 0.0){
+            logger.info("sendMarketOrder with preset tp: {} sl: {} ", tp, sl);
+            ProtoOANewOrderReq req = ProtoOANewOrderReq.newBuilder()
+                    .setCtidTraderAccountId(accountId)
+                    .setSymbolId(symbolId)
+                    .setOrderType(ProtoOAOrderType.MARKET)
+                    .setTradeSide(isBuy
+                            ? ProtoOATradeSide.BUY
+                            : ProtoOATradeSide.SELL)
+                    .setVolume(volume)
+                    .setClientOrderId(message)
+                .setTakeProfit(tp)
+                .setStopLoss(sl)
+                    .build();
+            send(req, ProtoOAPayloadType.PROTO_OA_NEW_ORDER_REQ_VALUE);
+        } else {
+            ProtoOANewOrderReq req = ProtoOANewOrderReq.newBuilder()
+                    .setCtidTraderAccountId(accountId)
+                    .setSymbolId(symbolId)
+                    .setOrderType(ProtoOAOrderType.MARKET)
+                    .setTradeSide(isBuy
+                            ? ProtoOATradeSide.BUY
+                            : ProtoOATradeSide.SELL)
+                    .setVolume(volume)
+                    .setClientOrderId(message)
+                    .build();
+            send(req, ProtoOAPayloadType.PROTO_OA_NEW_ORDER_REQ_VALUE);
+        }
+
     }
 
 
