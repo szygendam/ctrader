@@ -379,10 +379,10 @@ public class CTraderWebSocketClient {
 
         switch (message.getPayloadType()) {
 
-            case ProtoOAPayloadType.PROTO_OA_ERROR_RES_VALUE:{
-                logger.error("Received PROTO_OA_ERROR_RES_VALUE");
-            }
-            break;
+//            case ProtoOAPayloadType.PROTO_OA_ERROR_RES_VALUE:{
+//                logger.error("Received PROTO_OA_ERROR_RES_VALUE");
+//            }
+//            break;
 
             case ProtoOAPayloadType.PROTO_OA_VERSION_RES_VALUE: {
                 logger.info("Received PROTO_OA_VERSION_RES_VALUE");
