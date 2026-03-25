@@ -383,6 +383,10 @@ public class CTraderWebSocketClient {
 //                logger.error("Received PROTO_OA_ERROR_RES_VALUE");
 //            }
 //            break;
+            case 51:{
+                logger.error("Received 51 heartbeat message");
+            }
+            break;
 
             case ProtoOAPayloadType.PROTO_OA_VERSION_RES_VALUE: {
                 logger.info("Received PROTO_OA_VERSION_RES_VALUE");
