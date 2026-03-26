@@ -390,6 +390,12 @@ public class CTraderWebSocketClient {
             }
             break;
 
+            case ProtoOAPayloadType.PROTO_OA_ORDER_ERROR_EVENT_VALUE :{
+                logger.info("Received 2132 PROTO_OA_ORDER_ERROR_EVENT_VALUE");
+                logger.info("payload: " + message.getPayload());
+            }
+            break;
+
             case ProtoOAPayloadType.PROTO_OA_VERSION_RES_VALUE: {
                 logger.info("Received PROTO_OA_VERSION_RES_VALUE");
                 ProtoOAVersionRes res = ProtoOAVersionRes.parseFrom(message.getPayload());
@@ -662,6 +668,7 @@ public class CTraderWebSocketClient {
 
     @PreDestroy
     public void stop() {
+        logger.info("Shutting down...");
         if (heartbeatScheduler != null) {
             heartbeatScheduler.shutdownNow();
         }
