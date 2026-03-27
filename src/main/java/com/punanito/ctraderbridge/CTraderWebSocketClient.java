@@ -623,7 +623,8 @@ public class CTraderWebSocketClient {
                         logout();
                         System.exit(0);
                     }
-                    if(message.getPayload().toStringUtf8().contains("TRADING_BAD_STOPS")){
+                    if(message.getPayload().toStringUtf8().contains("TRADING_BAD_STOPS") ||
+                            message.getPayload().toStringUtf8().contains("POSITION_NOT_FOUND")){
                         close(lastPosition.get());
                     }
                 }
