@@ -393,6 +393,10 @@ public class CTraderWebSocketClient {
             case ProtoOAPayloadType.PROTO_OA_ORDER_ERROR_EVENT_VALUE :{
                 logger.info("Received 2132 PROTO_OA_ORDER_ERROR_EVENT_VALUE");
                 logger.info("payload: " + message.getPayload());
+                if(message.getPayload().toStringUtf8().contains("TRADING_BAD_STOPS") ||
+                        message.getPayload().toStringUtf8().contains("POSITION_NOT_FOUND")){
+                    close(lastPosition.get());
+                }
             }
             break;
 
