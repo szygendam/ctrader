@@ -393,9 +393,11 @@ public class CTraderWebSocketClient {
             case ProtoOAPayloadType.PROTO_OA_ORDER_ERROR_EVENT_VALUE :{
                 logger.info("Received 2132 PROTO_OA_ORDER_ERROR_EVENT_VALUE");
                 logger.info("payload: " + message.getPayload());
-                if(message.getPayload().toStringUtf8().contains("TRADING_BAD_STOPS") ||
-                        message.getPayload().toStringUtf8().contains("POSITION_NOT_FOUND")){
+                if(message.getPayload().toStringUtf8().contains("TRADING_BAD_STOPS")){
                     close(lastPosition.get());
+                }
+                else if(message.getPayload().toStringUtf8().contains("POSITION_NOT_FOUND")){
+                    n8nService.sendNotFoundOrderToN8n(lastPosition.get());
                 }
             }
             break;
@@ -567,51 +569,54 @@ public class CTraderWebSocketClient {
 //                    logger.info("Received empty PROTO_OA_EXECUTION_EVENT_VALUE - ignoring");
                     break;
                 }
-
-                if(event.getExecutionType() == ProtoOAExecutionType.ORDER_REPLACED){
-                    logger.debug("Received PROTO_OA_EXECUTION_EVENT_VALUE ORDER REPLACED");
-                    return;
-                }
-                logger.info("EXECUTION: " + event.getExecutionType());
-                double execPrice = 0.0;
-                if (event.hasOrder()) {
-                    logger.info("ORDER ID: " + event.getOrder().getOrderId());
-                    if (event.hasPosition()) {
-                        logger.info("ORDER STOP PRICE: " + event.getOrder().getStopPrice());
-                        logger.info("ORDER CLIENT ID: " + event.getOrder().getClientOrderId());
-                        logger.info("ORDER EXECUTION PRICE: " + event.getOrder().getExecutionPrice());
-                        execPrice = event.getOrder().getExecutionPrice();
-                        logger.info("ORDER STOP PRICE: " + event.getOrder().getStopPrice());
-                        logger.info("ORDER ISS TOP OUT: " + event.getOrder().getIsStopOut());
-                        logger.info("ORDER SL: " + event.getOrder().getStopLoss());
-                        logger.info("ORDER TP: " + event.getOrder().getTakeProfit());
-                        logger.info("ORDER STATUS: " + event.getOrder().getOrderStatus());
+                try {
+                    if (event.getExecutionType() == ProtoOAExecutionType.ORDER_REPLACED) {
+                        logger.debug("Received PROTO_OA_EXECUTION_EVENT_VALUE ORDER REPLACED");
+                        return;
                     }
-                }
+                    logger.info("EXECUTION: " + event.getExecutionType());
+                    double execPrice = 0.0;
+                    if (event.hasOrder()) {
+                        logger.info("ORDER ID: " + event.getOrder().getOrderId());
+                        if (event.hasPosition()) {
+                            logger.info("ORDER STOP PRICE: " + event.getOrder().getStopPrice());
+                            logger.info("ORDER CLIENT ID: " + event.getOrder().getClientOrderId());
+                            logger.info("ORDER EXECUTION PRICE: " + event.getOrder().getExecutionPrice());
+                            execPrice = event.getOrder().getExecutionPrice();
+                            logger.info("ORDER STOP PRICE: " + event.getOrder().getStopPrice());
+                            logger.info("ORDER ISS TOP OUT: " + event.getOrder().getIsStopOut());
+                            logger.info("ORDER SL: " + event.getOrder().getStopLoss());
+                            logger.info("ORDER TP: " + event.getOrder().getTakeProfit());
+                            logger.info("ORDER STATUS: " + event.getOrder().getOrderStatus());
+                        }
+                    }
 
-                if (event.hasPosition()) {
-                    logger.info("POSITION ID: " + event.getPosition().getPositionId());
-                    logger.info("POSITION STATUS: " + event.getPosition().getPositionStatus());
-                    logger.info("POSITION SL: " + event.getPosition().getStopLoss());
-                    logger.info("POSITION TP: " + event.getPosition().getTakeProfit());
-                    logger.info("POSITION PRICE: " + event.getPosition().getPrice());
-                    logger.info("POSITION SWAP: " + event.getPosition().getSwap());
-                    logger.info("POSITION COMISSION: " + event.getPosition().getCommission());
-                    logger.info("POSITION MARGIN RATE: " + event.getPosition().getMarginRate());
-                    logger.info("POSITION USED MARGIN: " + event.getPosition().getUsedMargin());
+                    if (event.hasPosition()) {
+                        logger.info("POSITION ID: " + event.getPosition().getPositionId());
+                        logger.info("POSITION STATUS: " + event.getPosition().getPositionStatus());
+                        logger.info("POSITION SL: " + event.getPosition().getStopLoss());
+                        logger.info("POSITION TP: " + event.getPosition().getTakeProfit());
+                        logger.info("POSITION PRICE: " + event.getPosition().getPrice());
+                        logger.info("POSITION SWAP: " + event.getPosition().getSwap());
+                        logger.info("POSITION COMISSION: " + event.getPosition().getCommission());
+                        logger.info("POSITION MARGIN RATE: " + event.getPosition().getMarginRate());
+                        logger.info("POSITION USED MARGIN: " + event.getPosition().getUsedMargin());
 
-                    n8nService.sendOrderToN8n(event.getOrder().getOrderId(),
-                            event.getPosition().getPositionId(),
-                            event.getOrder().getClientOrderId(),
-                            event.getExecutionType().name(),
-                            event.getPosition().getPositionStatus().name(),
-                            event.getOrder().getOrderStatus().name(),
-                            event.getPosition().getPrice(),
-                            event.getPosition().getStopLoss(),
-                            event.getPosition().getTakeProfit(),
-                            execPrice
-                    );
-                }
+                        n8nService.sendOrderToN8n(event.getOrder().getOrderId(),
+                                event.getPosition().getPositionId(),
+                                event.getOrder().getClientOrderId(),
+                                event.getExecutionType().name(),
+                                event.getPosition().getPositionStatus().name(),
+                                event.getOrder().getOrderStatus().name(),
+                                event.getPosition().getPrice(),
+                                event.getPosition().getStopLoss(),
+                                event.getPosition().getTakeProfit(),
+                                execPrice, false
+                        );
+                    }
+                } catch(Exception ex){
+                    logger.error(ex.getMessage(), ex);
+            }
             }
             break;
 
@@ -627,8 +632,7 @@ public class CTraderWebSocketClient {
                         logout();
                         System.exit(0);
                     }
-                    if(message.getPayload().toStringUtf8().contains("TRADING_BAD_STOPS") ||
-                            message.getPayload().toStringUtf8().contains("POSITION_NOT_FOUND")){
+                    if(message.getPayload().toStringUtf8().contains("TRADING_BAD_STOPS")){
                         close(lastPosition.get());
                     }
                 }

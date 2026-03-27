@@ -4,6 +4,7 @@ import com.punanito.ctraderbridge.model.AccountRequest;
 import com.punanito.ctraderbridge.model.ConnectRequest;
 import com.punanito.ctraderbridge.model.PositionRequest;
 import com.punanito.ctraderbridge.model.PriceRequest;
+import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -74,7 +75,7 @@ public class N8nService {
         if (response.getBody().contains("Workflow was started")) {
             // skip to save memory
         } else {
-            logger.info(response.getBody());
+            logger.warn(response.getBody());
         }
 
     }
@@ -95,11 +96,17 @@ public class N8nService {
         logger.info(response.getBody());
     }
 
+
+    public void sendNotFoundOrderToN8n(long positionId) {
+        logger.info("sendNotFoundOrderToN8n " + positionId);
+        sendOrderToN8n(0,positionId, StringUtils.EMPTY,StringUtils.EMPTY,StringUtils.EMPTY,StringUtils.EMPTY,0,0,0,0,true);
+    }
+
     public void sendOrderToN8n(long orderId, long positionId, String clientId, String executionType, String positionStatus,
-                                String orderStatus, double priceOpen, double sl, double tp, double execPrice) {
+                                String orderStatus, double priceOpen, double sl, double tp, double execPrice, boolean positionNotFound) {
         logger.info("sendOrderToN8n " + orderStatus);
         String url = n8nWebhookOrderUrl;
-        PositionRequest request = new PositionRequest(positionId, clientId,orderId,positionStatus,orderStatus,executionType,clientId,priceOpen,tp,sl, execPrice);
+        PositionRequest request = new PositionRequest(positionId, clientId,orderId,positionStatus,orderStatus,executionType,clientId,priceOpen,tp,sl, execPrice, positionNotFound);
         logger.info("PositionRequest: {}", request);
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
@@ -111,8 +118,7 @@ public class N8nService {
         if (response.getBody().contains("Workflow was started")) {
             // skip to save memory
         } else {
-            logger.info(response.getBody());
+            logger.warn(response.getBody());
         }
-
     }
 }

@@ -11,9 +11,10 @@ public class PositionRequest {
     private String positionStatus;
     private String orderStatus;
     private String executionType;
+    private boolean positionNotFound;
 
     public PositionRequest(long positionId, String clientId, long orderId, String positionStatus, String orderStatus,
-                           String executionType, String clientId1, double priceOpen, double tp, double sl, double execPrice) {
+                           String executionType, String clientId1, double priceOpen, double tp, double sl, double execPrice, boolean positionNotFound) {
         this.positionId = positionId;
         this.clientId = clientId;
         this.orderId = orderId;
@@ -25,6 +26,7 @@ public class PositionRequest {
         this.priceOpen = priceOpen;
         this.tp = tp;
         this.sl = sl;
+        this.positionNotFound = positionNotFound;
     }
 
     public PositionRequest(long positionId) {
@@ -109,5 +111,13 @@ public class PositionRequest {
     }
     public void setOrderStatus(long orderId) {
         this.orderId = orderId;
+    }
+
+    public boolean isPositionNotFound() {
+        return positionNotFound;
+    }
+
+    public void setPositionNotFound(boolean positionNotFound) {
+        this.positionNotFound = positionNotFound;
     }
 }
