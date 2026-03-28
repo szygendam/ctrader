@@ -556,9 +556,7 @@ public class CTraderWebSocketClient {
                 String symbolName = symbolById.get(event.getSymbolId());
 
                 n8nService.sendTicksToN8n(lastBid, lastAsk, symbolName, symbolByName.get(symbolName));
-                long javaScalper = System.currentTimeMillis();
                 handleJavaScalper(lastBid,lastAsk, symbolName, event.getSymbolId(), lastTickTime);
-                logger.info("JavaScalper total latency {} ms ", (System.currentTimeMillis() - javaScalper));
             }
 
             case ProtoOAPayloadType.PROTO_OA_EXECUTION_EVENT_VALUE: {
