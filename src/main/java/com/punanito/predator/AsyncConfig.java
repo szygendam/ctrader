@@ -1,4 +1,4 @@
-package com.punanito.ctraderbridge;
+package com.punanito.predator;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.scheduling.annotation.EnableAsync;

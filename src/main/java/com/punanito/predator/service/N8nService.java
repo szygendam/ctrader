@@ -1,9 +1,9 @@
-package com.punanito.ctraderbridge.service;
+package com.punanito.predator.service;
 
-import com.punanito.ctraderbridge.model.AccountRequest;
-import com.punanito.ctraderbridge.model.ConnectRequest;
-import com.punanito.ctraderbridge.model.PositionRequest;
-import com.punanito.ctraderbridge.model.PriceRequest;
+import com.punanito.predator.model.AccountRequest;
+import com.punanito.predator.model.ConnectRequest;
+import com.punanito.predator.model.PositionRequest;
+import com.punanito.predator.model.PriceRequest;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

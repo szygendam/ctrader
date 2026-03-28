@@ -1,4 +1,4 @@
-package com.punanito.ctraderbridge;
+package com.punanito.predator;
 
 import org.apache.http.HeaderElement;
 import org.apache.http.HeaderElementIterator;

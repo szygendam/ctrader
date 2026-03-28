@@ -1,4 +1,4 @@
-package com.punanito.ctraderbridge.model;
+package com.punanito.predator.model;
 
 public class AuthResult {
     private String accessToken;

@@ -1,4 +1,4 @@
-package com.punanito.ctraderbridge.model;
+package com.punanito.predator.model;
 
 public class PositionRequest {
     private long positionId;

@@ -1,6 +1,5 @@
-package com.punanito.ctraderbridge.model;
+package com.punanito.predator.model;
 
-import java.util.Date;
 
 public class PriceRequest extends SymbolRequest {
     private double lastBid;
@@ -10,7 +9,11 @@ public class PriceRequest extends SymbolRequest {
 
 
     public PriceRequest(double lastBid, double lastAsk, long symbolId, String symbolName) {
-       super(symbolId,symbolName);
+         this(lastBid, lastAsk, symbolId, symbolName, System.currentTimeMillis());
+    }
+
+    public PriceRequest(double lastBid, double lastAsk, long symbolId, String symbolName,long currentTime) {
+        super(symbolId,symbolName);
         this.lastBid = lastBid;
         this.lastAsk = lastAsk;
         if(lastBid == 0 || lastAsk == 0){
@@ -18,7 +21,7 @@ public class PriceRequest extends SymbolRequest {
         } else {
             this.spread =  lastAsk - lastBid;
         }
-        currentTime = System.currentTimeMillis();
+        this.currentTime = currentTime;
     }
 
     public double getLastBid() {

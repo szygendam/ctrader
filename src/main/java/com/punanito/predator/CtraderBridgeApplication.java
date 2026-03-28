@@ -1,4 +1,4 @@
-package com.punanito.ctraderbridge;
+package com.punanito.predator;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;

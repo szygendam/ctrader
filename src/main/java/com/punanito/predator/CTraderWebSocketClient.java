@@ -1,8 +1,11 @@
-package com.punanito.ctraderbridge;
+package com.punanito.predator;
 
 import com.google.protobuf.InvalidProtocolBufferException;
-import com.punanito.ctraderbridge.model.PositionDto;
-import com.punanito.ctraderbridge.service.N8nService;
+import com.punanito.predator.model.PositionDto;
+import com.punanito.predator.model.PriceRequest;
+import com.punanito.predator.model.ScalperDto;
+import com.punanito.predator.service.N8nService;
+import com.punanito.predator.service.ScalperService;
 import com.xtrader.protocol.openapi.v2.*;
 import com.xtrader.protocol.openapi.v2.model.*;
 import com.xtrader.protocol.proto.commons.ProtoHeartbeatEvent;
@@ -29,7 +32,6 @@ import java.util.concurrent.CompletionStage;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 
 @Component
@@ -59,13 +61,14 @@ public class CTraderWebSocketClient {
     private ScheduledExecutorService ticksWatcher;
     private ScheduledExecutorService unprotectedPositionWatcher;
     private AtomicLong lastPosition = new AtomicLong(0);
-    private AtomicBoolean javaScalperEnabled = new AtomicBoolean(false);
 
 
     private final N8nService n8nService;
+    private final ScalperService scalperService;
 
-    public CTraderWebSocketClient(N8nService n8nService) {
+    public CTraderWebSocketClient(N8nService n8nService, ScalperService scalperService) {
         this.n8nService = n8nService;
+        this.scalperService = scalperService;
     }
 
     public void updateAccessToken(String accessToken) {
@@ -309,8 +312,8 @@ public class CTraderWebSocketClient {
     }
 
 
-    private void sendMarketOrder(long symbolId, boolean isBuy, long volume, String message,double tp, double sl) {
-        logger.info("sendMarketOrder message: {} volume: {} sl: {} tp: {} ", message, volume,sl,tp);
+    private void sendMarketOrder(long symbolId, boolean isBuy, long volume, String clientOrderId,double tp, double sl) {
+        logger.info("sendMarketOrder clientOrderId: {} volume: {} sl: {} tp: {} ", clientOrderId, volume,sl,tp);
         if(tp != 0.0){
             logger.info("sendMarketOrder with preset tp: {} sl: {} ", tp, sl);
             ProtoOANewOrderReq req = ProtoOANewOrderReq.newBuilder()
@@ -321,7 +324,7 @@ public class CTraderWebSocketClient {
                             ? ProtoOATradeSide.BUY
                             : ProtoOATradeSide.SELL)
                     .setVolume(volume)
-                    .setClientOrderId(message)
+                    .setClientOrderId(clientOrderId)
                 .setTakeProfit(tp)
                 .setStopLoss(sl)
                     .build();
@@ -335,7 +338,7 @@ public class CTraderWebSocketClient {
                             ? ProtoOATradeSide.BUY
                             : ProtoOATradeSide.SELL)
                     .setVolume(volume)
-                    .setClientOrderId(message)
+                    .setClientOrderId(clientOrderId)
                     .build();
             send(req, ProtoOAPayloadType.PROTO_OA_NEW_ORDER_REQ_VALUE);
         }
@@ -551,13 +554,11 @@ public class CTraderWebSocketClient {
                 lastTickTime = System.currentTimeMillis();
                 connectErrorCount = 0;
                 String symbolName = symbolById.get(event.getSymbolId());
-                if(symbolName != null && symbolName.equals("XAUUSD") && javaScalperEnabled.get()) {
-                    if(scalperCondition()){
-//                        sendMarketOrder();
-                        javaScalperEnabled.set(false);
-                    }
-                }
+
                 n8nService.sendTicksToN8n(lastBid, lastAsk, symbolName, symbolByName.get(symbolName));
+                long javaScalper = System.currentTimeMillis();
+                handleJavaScalper(lastBid,lastAsk, symbolName, event.getSymbolId(), lastTickTime);
+                logger.info("JavaScalper total latency {} ms ", (System.currentTimeMillis() - javaScalper));
             }
 
             case ProtoOAPayloadType.PROTO_OA_EXECUTION_EVENT_VALUE: {
@@ -636,6 +637,28 @@ public class CTraderWebSocketClient {
                         close(lastPosition.get());
                     }
                 }
+            }
+        }
+    }
+
+    private void handleJavaScalper(double lastBid, double lastAsk, String symbolName, long symbolId, long lastTickTime) {
+        if(symbolName != null && symbolName.equals("XAUUSD") &&  scalperService.isEnabled()) {
+            long startFireSignal = System.currentTimeMillis();
+
+            ScalperDto scalperDto = scalperService.fireSignal(new PriceRequest(lastBid, lastAsk, symbolId, symbolName,lastTickTime));
+            logger.info("fireSignal latency {} ms", System.currentTimeMillis() - startFireSignal);
+            String positionMessage = "DEMO_MAC_PREDATOR_SCALPER_V1-" + lastTickTime;
+            switch(scalperDto.getOperation()) {
+                case "LONG":
+                    sendMarketOrder(symbolId,true, 100,positionMessage, scalperDto.getTp(), scalperDto.getSl());
+                    scalperService.disable();
+                    break;
+                case "SHORT":
+                    sendMarketOrder(symbolId,false, 100,positionMessage,scalperDto.getTp(), scalperDto.getSl());
+                    scalperService.disable();
+                    break;
+                default:
+                    logger.debug("java scalper signal: {}", scalperDto.getOperation());
             }
         }
     }

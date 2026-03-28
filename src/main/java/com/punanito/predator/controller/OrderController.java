@@ -1,7 +1,7 @@
-package com.punanito.ctraderbridge.controller;
+package com.punanito.predator.controller;
 
-import com.punanito.ctraderbridge.CTraderWebSocketClient;
-import com.punanito.ctraderbridge.model.OrderRequest;
+import com.punanito.predator.CTraderWebSocketClient;
+import com.punanito.predator.model.OrderRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;

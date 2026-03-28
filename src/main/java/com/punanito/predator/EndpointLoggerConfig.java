@@ -1,4 +1,4 @@
-package com.punanito.ctraderbridge;
+package com.punanito.predator;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
