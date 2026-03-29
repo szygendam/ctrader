@@ -352,6 +352,10 @@ public class CTraderWebSocketClient {
 
     public void protect(double sl, double tp, long positionId) {
         logger.info("protect sl:{}, tp:{}, positionId:{} ", sl, tp, positionId);
+        if (sl == 0.0 && tp == 0.0) {
+            logger.warn("skipping protect...");
+            return;
+        }
         positionMap.putIfAbsent(positionId, new PositionDto(sl,tp));
         lastPosition.set(positionId);
         ProtoOAAmendPositionSLTPReq req = ProtoOAAmendPositionSLTPReq.newBuilder()
