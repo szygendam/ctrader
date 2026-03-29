@@ -5,6 +5,7 @@ import com.punanito.predator.model.PositionDto;
 import com.punanito.predator.model.PriceRequest;
 import com.punanito.predator.model.ScalperDto;
 import com.punanito.predator.service.N8nService;
+import com.punanito.predator.service.PositionIdStore;
 import com.punanito.predator.service.ScalperService;
 import com.xtrader.protocol.openapi.v2.*;
 import com.xtrader.protocol.openapi.v2.model.*;
@@ -66,10 +67,12 @@ public class CTraderWebSocketClient {
 
     private final N8nService n8nService;
     private final ScalperService scalperService;
+    private final PositionIdStore positionIdStore; //
 
-    public CTraderWebSocketClient(N8nService n8nService, ScalperService scalperService) {
+    public CTraderWebSocketClient(N8nService n8nService, ScalperService scalperService, PositionIdStore positionIdStore) {
         this.n8nService = n8nService;
         this.scalperService = scalperService;
+        this.positionIdStore = positionIdStore;
     }
 
     public void updateAccessToken(String accessToken) {
@@ -401,7 +404,9 @@ public class CTraderWebSocketClient {
                     close(lastPosition.get());
                 }
                 else if(message.getPayload().toStringUtf8().contains("POSITION_NOT_FOUND")){
-                    n8nService.sendNotFoundOrderToN8n(lastCLosingPosition.get());
+                    for (Long lastClosingPositionId : positionIdStore.getActiveValues()) {
+                        n8nService.sendNotFoundOrderToN8n(lastClosingPositionId);
+                    }
                 }
             }
             break;
@@ -739,7 +744,7 @@ public class CTraderWebSocketClient {
 
     public void close(long positionId) {
             logger.info("close positionId:{} ", positionId);
-            lastCLosingPosition.set(positionId);
+             positionIdStore.add(positionId);
 
             ProtoOAClosePositionReq req = ProtoOAClosePositionReq.newBuilder()
                     .setPositionId(positionId)
