@@ -61,6 +61,7 @@ public class CTraderWebSocketClient {
     private ScheduledExecutorService ticksWatcher;
     private ScheduledExecutorService unprotectedPositionWatcher;
     private AtomicLong lastPosition = new AtomicLong(0);
+    private AtomicLong lastCLosingPosition = new AtomicLong(0);
 
 
     private final N8nService n8nService;
@@ -400,7 +401,7 @@ public class CTraderWebSocketClient {
                     close(lastPosition.get());
                 }
                 else if(message.getPayload().toStringUtf8().contains("POSITION_NOT_FOUND")){
-                    n8nService.sendNotFoundOrderToN8n(lastPosition.get());
+                    n8nService.sendNotFoundOrderToN8n(lastCLosingPosition.get());
                 }
             }
             break;
@@ -738,6 +739,7 @@ public class CTraderWebSocketClient {
 
     public void close(long positionId) {
             logger.info("close positionId:{} ", positionId);
+            lastCLosingPosition.set(positionId);
 
             ProtoOAClosePositionReq req = ProtoOAClosePositionReq.newBuilder()
                     .setPositionId(positionId)
