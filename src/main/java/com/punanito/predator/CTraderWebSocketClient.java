@@ -315,6 +315,36 @@ public class CTraderWebSocketClient {
         }
     }
 
+    public void us500NewOrder(String operation, String message, double tp, double sl) {
+        logger.info("us500NewOrder");
+        boolean isBuy = operation.equals("LONG");
+        if (accountBalanceHalf > 0) {
+
+            long goldId = findSymbolByName("US 500");
+//            double sl = 0;
+//            double tp = 0;
+//
+//            double entry;
+//            if (isBuy) {
+//                entry = lastAsk; // cena, po której ktoś chce sprzedać, czyli Ty jako kupujący musisz ją zaakceptować.
+//                sl = entry - (stopLossPips / Math.pow(10, symbolDigits.get(goldId)));
+//                tp = entry + (takeProfitPips / Math.pow(10, symbolDigits.get(goldId)));
+//            } else {
+//                entry = lastBid; // cena, po której ktoś chce kupić, a Ty sprzedajesz po tej ofercie.
+//                sl = entry + (stopLossPips / Math.pow(10, symbolDigits.get(goldId)));
+//                tp = entry - (takeProfitPips / Math.pow(10, symbolDigits.get(goldId)));
+//            }
+
+//            long volume = calculateDynamicVolume(symbolLotSize.get(goldId), stopLossPips);
+            long volume = 100;
+
+//            logger.info("NEW Entry=" + entry + " SL=" + sl + " TP=" + tp + " Vol=" + volume);
+//            ProtoOASymbol xauusd = symbolDetails.get(41);
+//            logger.info("XAUUSD =" + xauusd.toString());
+            sendMarketOrder(goldId, isBuy, volume, message, tp, sl);
+        }
+    }
+
 
     private void sendMarketOrder(long symbolId, boolean isBuy, long volume, String clientOrderId,double tp, double sl) {
         logger.info("sendMarketOrder clientOrderId: {} volume: {} sl: {} tp: {} ", clientOrderId, volume,sl,tp);
@@ -503,7 +533,7 @@ public class CTraderWebSocketClient {
                 logger.info("Załadowano " + symbolByName.size() + " symboli");
 
                 sendSymbolById(findSymbolByName("XAUUSD"));
-//                sendSymbolById(findSymbolByName("US 500"));
+                sendSymbolById(findSymbolByName("US 500"));
 
             }
             break;

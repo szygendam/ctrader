@@ -30,6 +30,13 @@ public class OrderController {
         return ResponseEntity.ok().build();
     }
 
+    @PostMapping("/us500/new")
+    public ResponseEntity<Void> us500NewOrder(@RequestBody OrderRequest orderRequest) {
+        logger.info("Received new order request: isBuy {} message {} ", orderRequest.getOperation(), orderRequest.getMessage());
+        webSocketClient.us500NewOrder(orderRequest.getOperation(),orderRequest.getMessage(),orderRequest.getTp(),orderRequest.getSl());
+        return ResponseEntity.ok().build();
+    }
+
     @PostMapping("/protect")
     public ResponseEntity<Void> protect(@RequestBody OrderRequest orderRequest) {
         webSocketClient.protect(orderRequest.getSl(),orderRequest.getTp(),orderRequest.getPositionId());
