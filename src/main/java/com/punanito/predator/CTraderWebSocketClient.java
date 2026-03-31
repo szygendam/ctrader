@@ -49,7 +49,7 @@ public class CTraderWebSocketClient {
     long lastTickTime = 0;
     int connectErrorCount = 0;
     private Map<Long, ProtoOASymbol> symbolDetails = new HashMap<>();
-    private Map<String, Long> symbolByName = new HashMap<>();
+    private Map<String, Integer> symbolByName = new HashMap<>();
     private Map<Long, String> symbolById = new HashMap<>();
     private Map<Long, Integer> symbolDigits = new HashMap<>();
     private Map<Long, Long> symbolLotSize = new HashMap<>();
@@ -161,11 +161,12 @@ public class CTraderWebSocketClient {
         ticksWatcher = Executors.newScheduledThreadPool(1);
         ticksWatcher.scheduleAtFixedRate(() -> {
             logger.info("startTickWatcher");
-            if (System.currentTimeMillis() - lastTickTime > 4000) {
+            if (System.currentTimeMillis() - lastTickTime > 5000) {
                 if (lastTickTime != 0) {
+                    connectErrorCount++;
                     logout();
                     try {
-                        Thread.sleep(1000);
+                        Thread.sleep(10000);
                     } catch (InterruptedException e) {
                         throw new RuntimeException(e);
                     }
@@ -563,8 +564,7 @@ public class CTraderWebSocketClient {
                         ProtoOASymbolsListRes.parseFrom(message.getPayload());
 
                 for (ProtoOALightSymbol symbol : res.getSymbolList()) {
-//                    logger.info("SymbolName: " + symbol.getSymbolName());
-                    symbolByName.putIfAbsent(symbol.getSymbolName(), symbol.getSymbolId());
+                    symbolByName.putIfAbsent(symbol.getSymbolName(), (int) symbol.getSymbolId());
                     symbolById.putIfAbsent(symbol.getSymbolId(), symbol.getSymbolName());
                     if(symbol.getSymbolName().contains("500")) {
                         logger.info("500 symbolName: {} ",symbol.getSymbolName());
@@ -602,17 +602,33 @@ public class CTraderWebSocketClient {
             case ProtoOAPayloadType.PROTO_OA_SYMBOL_BY_ID_RES_VALUE: {
                 logger.info("Received PROTO_OA_SYMBOL_BY_ID_RES_VALUE");
                 ProtoOASymbolByIdRes event = ProtoOASymbolByIdRes.parseFrom(message.getPayload());
+
+                int us500 = 0;
+                int gold = 0;
+                if(findSymbolByName("US500") != null) {
+                    us500 = findSymbolByName("US500");
+                }
+                if(findSymbolByName("XAUUSD") != null) {
+                    gold = findSymbolByName("XAUUSD");
+                }
+
                 for (ProtoOASymbol protoOASymbol : event.getSymbolList()) {
                     symbolDetails.putIfAbsent(protoOASymbol.getSymbolId(), protoOASymbol);
                     logger.info("protoOASymbol.getSymbolId() {} lotSize {} maxVolume {} minVolume {} digits {} getMeasurementUnits {} ", protoOASymbol.getSymbolId(), protoOASymbol.getLotSize(), protoOASymbol.getMaxVolume(), protoOASymbol.getMinVolume(), protoOASymbol.getDigits(), protoOASymbol.getMeasurementUnits());
-                    switch ((int) protoOASymbol.getSymbolId()) {
-                        case 41:
-                            subscribeGold();
-                            break;
-//                        case 21499:
+
+                    int symbolId = (int) protoOASymbol.getSymbolId();
+                    if(symbolId == gold){
+
+                    }
+
+//                    switch ((int) protoOASymbol.getSymbolId()) {
+//                        case 41:
+//                            subscribeGold();
+//                            break;
+//                        case us500:
 //                            subscribeUS500();
 //                            break;
-                    }
+//                    }
                 }
 //                logger.info("Załadowano " + symbolDetails.size() + " symboli");
             }
@@ -817,7 +833,7 @@ public class CTraderWebSocketClient {
     }
 
 
-    public Long findSymbolByName(String name) {
+    public Integer findSymbolByName(String name) {
         return symbolByName.get(name);
     }
 
