@@ -333,6 +333,12 @@ public class CTraderWebSocketClient {
         if (accountBalanceHalf > 0) {
 
             long goldId = findSymbolByName("US 500");
+            if (goldId == 0) {
+                goldId = findSymbolByName("US_500");
+                if (goldId == 0) {
+                    goldId = findSymbolByName("US500");
+                }
+            }
 //            double sl = 0;
 //            double tp = 0;
 //
@@ -545,6 +551,13 @@ public class CTraderWebSocketClient {
                 logger.info("Załadowano " + symbolByName.size() + " symboli");
 
                 sendSymbolById(findSymbolByName("XAUUSD"));
+                if (findSymbolByName("US 500") != null){
+                    sendSymbolById(findSymbolByName("US 500"));
+                } else if (findSymbolByName("US_500") != null){
+                    sendSymbolById(findSymbolByName("US_500"));
+                } else if (findSymbolByName("US500") != null){
+                    sendSymbolById(findSymbolByName("US500"));
+                }
                 sendSymbolById(findSymbolByName("US 500"));
 
             }
