@@ -566,8 +566,8 @@ public class CTraderWebSocketClient {
 //                    logger.info("SymbolName: " + symbol.getSymbolName());
                     symbolByName.putIfAbsent(symbol.getSymbolName(), symbol.getSymbolId());
                     symbolById.putIfAbsent(symbol.getSymbolId(), symbol.getSymbolName());
-                    if(findSymbolByName("500") != null){
-                        logger.info("symbolId: {} symbolName: {} ",findSymbolByName("500").toString(), symbolById.get(findSymbolByName("500")));
+                    if(symbol.getSymbolName().contains("500")) {
+                        logger.info("500 symbolName: {} ",symbol.getSymbolName());
                     }
                 }
                 logger.info("Załadowano " + symbolByName.size() + " symboli");
