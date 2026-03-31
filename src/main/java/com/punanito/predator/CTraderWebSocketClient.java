@@ -62,7 +62,6 @@ public class CTraderWebSocketClient {
     private ScheduledExecutorService ticksWatcher;
     private ScheduledExecutorService unprotectedPositionWatcher;
     private AtomicLong lastPosition = new AtomicLong(0);
-    private AtomicLong lastCLosingPosition = new AtomicLong(0);
 
 
     private final N8nService n8nService;
@@ -285,6 +284,20 @@ public class CTraderWebSocketClient {
         send(req, ProtoOAPayloadType.PROTO_OA_UNSUBSCRIBE_SPOTS_REQ_VALUE);
     }
 
+    public void sendDealList() {
+        logger.info("sendDealList");
+        try {
+            ProtoOAApplicationAuthReq req = ProtoOAApplicationAuthReq.newBuilder()
+                    .setClientId(CLIENT_ID)
+                    .setClientSecret(CLIENT_SECRET)
+                    .build();
+            send(req, ProtoOAPayloadType.PROTO_OA_APPLICATION_AUTH_REQ_VALUE);
+        } catch (Exception e) {
+            logger.error("sendApplicationAuth failed", e);
+            throw e;
+        }
+    }
+
     public void sendOrder(String operation, String message, double tp, double sl, String symbolName) {
         switch(symbolName) {
             case "XAUUSD":
@@ -463,6 +476,18 @@ public class CTraderWebSocketClient {
             }
             break;
 
+            case ProtoOAPayloadType.PROTO_OA_SYMBOL_CHANGED_EVENT_VALUE:{
+                logger.info("Received 2120 PROTO_OA_SYMBOL_CHANGED_EVENT_VALUE");
+                logger.info("payload: " + message.getPayload());
+
+                else if(message.getPayload().toStringUtf8().contains("POSITION_NOT_FOUND")){
+                    for (Long lastClosingPositionId : positionIdStore.getActiveValues()) {
+                        n8nService.sendNotFoundOrderToN8n(lastClosingPositionId);
+                    }
+                }
+            }
+            break;
+
             case ProtoOAPayloadType.PROTO_OA_VERSION_RES_VALUE: {
                 logger.info("Received PROTO_OA_VERSION_RES_VALUE");
                 ProtoOAVersionRes res = ProtoOAVersionRes.parseFrom(message.getPayload());
@@ -547,8 +572,12 @@ public class CTraderWebSocketClient {
 //                    logger.info("SymbolName: " + symbol.getSymbolName());
                     symbolByName.putIfAbsent(symbol.getSymbolName(), symbol.getSymbolId());
                     symbolById.putIfAbsent(symbol.getSymbolId(), symbol.getSymbolName());
+                    if(findSymbolByName("500") != null){
+                        logger.info("symbolId: {} symbolName: {} ",findSymbolByName("500").toString(), symbolById.get(findSymbolByName("500")));
+                    }
                 }
                 logger.info("Załadowano " + symbolByName.size() + " symboli");
+
 
                 sendSymbolById(findSymbolByName("XAUUSD"));
                 if (findSymbolByName("US 500") != null){
@@ -586,9 +615,9 @@ public class CTraderWebSocketClient {
                         case 41:
                             subscribeGold();
                             break;
-                        case 21499:
-                            subscribeUS500();
-                            break;
+//                        case 21499:
+//                            subscribeUS500();
+//                            break;
                     }
                 }
 //                logger.info("Załadowano " + symbolDetails.size() + " symboli");
