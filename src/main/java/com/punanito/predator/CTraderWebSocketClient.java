@@ -479,12 +479,6 @@ public class CTraderWebSocketClient {
             case ProtoOAPayloadType.PROTO_OA_SYMBOL_CHANGED_EVENT_VALUE:{
                 logger.info("Received 2120 PROTO_OA_SYMBOL_CHANGED_EVENT_VALUE");
                 logger.info("payload: " + message.getPayload());
-
-                else if(message.getPayload().toStringUtf8().contains("POSITION_NOT_FOUND")){
-                    for (Long lastClosingPositionId : positionIdStore.getActiveValues()) {
-                        n8nService.sendNotFoundOrderToN8n(lastClosingPositionId);
-                    }
-                }
             }
             break;
 
