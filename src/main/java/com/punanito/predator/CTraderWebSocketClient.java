@@ -617,20 +617,12 @@ public class CTraderWebSocketClient {
                     logger.info("protoOASymbol.getSymbolId() {} lotSize {} maxVolume {} minVolume {} digits {} getMeasurementUnits {} ", protoOASymbol.getSymbolId(), protoOASymbol.getLotSize(), protoOASymbol.getMaxVolume(), protoOASymbol.getMinVolume(), protoOASymbol.getDigits(), protoOASymbol.getMeasurementUnits());
 
                     int symbolId = (int) protoOASymbol.getSymbolId();
-                    if(symbolId == gold){
-
+                    if (symbolId == gold) {
+                        subscribeGold();
+                    } else if (symbolId == us500){
+                        subscribeUS500();
                     }
-
-//                    switch ((int) protoOASymbol.getSymbolId()) {
-//                        case 41:
-//                            subscribeGold();
-//                            break;
-//                        case us500:
-//                            subscribeUS500();
-//                            break;
-//                    }
                 }
-//                logger.info("Załadowano " + symbolDetails.size() + " symboli");
             }
             break;
 
@@ -744,32 +736,25 @@ public class CTraderWebSocketClient {
     }
 
     private void handleJavaScalper(double lastBid, double lastAsk, String symbolName, long symbolId, long lastTickTime) {
-        if(symbolName != null && symbolName.equals("XAUUSD") &&  scalperService.isEnabled()) {
+        if (symbolName != null && symbolName.equals("XAUUSD") && scalperService.isEnabled()) {
             long startFireSignal = System.currentTimeMillis();
 
-            ScalperDto scalperDto = scalperService.fireSignal(new PriceRequest(lastBid, lastAsk, symbolId, symbolName,lastTickTime));
+            ScalperDto scalperDto = scalperService.fireSignal(new PriceRequest(lastBid, lastAsk, symbolId, symbolName, lastTickTime));
             logger.info("fireSignal latency {} ms", System.currentTimeMillis() - startFireSignal);
             String positionMessage = "DEMO_MAC_PREDATOR_SCALPER_V1-" + lastTickTime;
-            switch(scalperDto.getOperation()) {
+            switch (scalperDto.getOperation()) {
                 case "LONG":
-                    sendMarketOrder(symbolId,true, 100,"LONG" + positionMessage, scalperDto.getTp(), scalperDto.getSl());
+                    sendMarketOrder(symbolId, true, 100, "LONG" + positionMessage, scalperDto.getTp(), scalperDto.getSl());
                     scalperService.disable();
                     break;
                 case "SHORT":
-                    sendMarketOrder(symbolId,false, 100,"SHORT" + positionMessage,scalperDto.getTp(), scalperDto.getSl());
+                    sendMarketOrder(symbolId, false, 100, "SHORT" + positionMessage, scalperDto.getTp(), scalperDto.getSl());
                     scalperService.disable();
                     break;
                 default:
                     logger.debug("java scalper signal: {}", scalperDto.getOperation());
             }
         }
-    }
-
-    private boolean scalperCondition() {
-//        if (bodyAbs()){
-//
-//        }
-        return false;
     }
 
     private void subscribeGold() {
@@ -779,8 +764,8 @@ public class CTraderWebSocketClient {
     }
 
     private void subscribeUS500() {
-        if (!symbolByName.isEmpty() && symbolByName.get("US 500") != null){
-            subscribeToTicks(symbolByName.get("US 500"),"US 500");
+        if (!symbolByName.isEmpty() && symbolByName.get("US500") != null){
+            subscribeToTicks(symbolByName.get("US500"),"US500");
         }
     }
 
