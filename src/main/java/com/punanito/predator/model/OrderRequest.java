@@ -10,6 +10,7 @@ public class OrderRequest {
     private double sl;
     private double tp;
     private String status;
+    private String symbol;
     private long ctidTraderAccountId;
 
 
@@ -70,5 +71,13 @@ public class OrderRequest {
 
     public long getCtidTraderAccountId() {
         return ctidTraderAccountId;
+    }
+
+    public String getSymbol() {
+        return symbol;
+    }
+
+    public void setSymbol(String symbol) {
+        this.symbol = symbol;
     }
 }

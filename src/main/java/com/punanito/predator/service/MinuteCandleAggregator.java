@@ -10,16 +10,26 @@ import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 @Service
 public class MinuteCandleAggregator {
 
     private final List<PriceRequest> ticks = new ArrayList<>();
+    private AtomicBoolean javaScalperSleeping = new AtomicBoolean(false);
 
     /**
      * Początek aktualnie obsługiwanej minuty, np. 12:34:00.000
      */
     private long currentMinuteStart = -1L;
+
+    public boolean isJavaScalperSleeping() {
+        return javaScalperSleeping.get();
+    }
+
+    public void setJavaScalperSleeping(boolean javaScalperSleeping) {
+        this.javaScalperSleeping.set(javaScalperSleeping);
+    }
 
     /**
      * Przetwarza nowy tick.
@@ -37,6 +47,7 @@ public class MinuteCandleAggregator {
         if (tickMinuteStart != currentMinuteStart) {
             currentMinuteStart = tickMinuteStart;
             ticks.clear();
+            javaScalperSleeping.set(false);
             ticks.add(tick);
             return null; // sekundy 0..2 i tak jeszcze nie liczysz
         }

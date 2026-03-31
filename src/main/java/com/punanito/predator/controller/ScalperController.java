@@ -35,4 +35,11 @@ public class ScalperController {
         return ResponseEntity.ok().build();
     }
 
+    @PostMapping("/sleep")
+    public ResponseEntity<Void> sleep() {
+        logger.info("Received scalper sleep");
+        scalperService.sleep();
+        return ResponseEntity.ok().build();
+    }
+
 }

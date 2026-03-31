@@ -3,8 +3,6 @@ package com.punanito.predator.service;
 import com.punanito.predator.model.CurrentCandleData;
 import com.punanito.predator.model.PriceRequest;
 import com.punanito.predator.model.ScalperDto;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
@@ -16,12 +14,10 @@ import static com.punanito.predator.model.CandleColor.RED;
 
 @Service
 public class ScalperService {
-    private static final Logger logger = LoggerFactory.getLogger(ScalperService.class);
 
     private final MinuteCandleAggregator minuteCandleAggregator;
 
     private AtomicBoolean javaScalperEnabled = new AtomicBoolean(false);
-    private AtomicBoolean javaScalperSleeping = new AtomicBoolean(false);
 
     List<PriceRequest> ticks = new ArrayList<>();
 
@@ -45,7 +41,7 @@ public class ScalperService {
     }
 
     public boolean isEnabled(){
-        return javaScalperEnabled.get() && !javaScalperSleeping.get();
+        return javaScalperEnabled.get() && !minuteCandleAggregator.isJavaScalperSleeping();
     }
 
     public void enable() {
@@ -56,6 +52,9 @@ public class ScalperService {
         javaScalperEnabled.set(false);
     }
 
+    public void sleep() {
+        minuteCandleAggregator.setJavaScalperSleeping(true);
+    }
 
     public static double calcProgressPercent(
             String operation,

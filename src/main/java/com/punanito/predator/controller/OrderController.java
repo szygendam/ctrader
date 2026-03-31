@@ -26,14 +26,7 @@ public class OrderController {
     @PostMapping("/new")
     public ResponseEntity<Void> newOrder(@RequestBody OrderRequest orderRequest) {
         logger.info("Received new order request: isBuy {} message {} ", orderRequest.getOperation(), orderRequest.getMessage());
-        webSocketClient.sendGoldOrder(orderRequest.getOperation(),orderRequest.getMessage(),orderRequest.getTp(),orderRequest.getSl());
-        return ResponseEntity.ok().build();
-    }
-
-    @PostMapping("/us500/new")
-    public ResponseEntity<Void> us500NewOrder(@RequestBody OrderRequest orderRequest) {
-        logger.info("Received new order request: isBuy {} message {} ", orderRequest.getOperation(), orderRequest.getMessage());
-        webSocketClient.us500NewOrder(orderRequest.getOperation(),orderRequest.getMessage(),orderRequest.getTp(),orderRequest.getSl());
+        webSocketClient.sendOrder(orderRequest.getOperation(),orderRequest.getMessage(),orderRequest.getTp(),orderRequest.getSl(), orderRequest.getSymbol());
         return ResponseEntity.ok().build();
     }
 

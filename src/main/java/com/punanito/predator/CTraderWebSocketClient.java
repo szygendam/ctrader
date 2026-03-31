@@ -285,6 +285,18 @@ public class CTraderWebSocketClient {
         send(req, ProtoOAPayloadType.PROTO_OA_UNSUBSCRIBE_SPOTS_REQ_VALUE);
     }
 
+    public void sendOrder(String operation, String message, double tp, double sl, String symbolName) {
+        switch(symbolName) {
+            case "XAUUSD":
+                sendGoldOrder(operation, message, tp, sl);
+                break;
+            case "US 500":
+                sendUs500Order(operation, message, tp, sl);
+            default:
+                logger.error("unhandled symbol new Order" + symbolName);
+        }
+    }
+
     public void sendGoldOrder(String operation, String message, double tp, double sl) {
         logger.info("sendGoldOrder");
         boolean isBuy = operation.equals("LONG");
@@ -315,7 +327,7 @@ public class CTraderWebSocketClient {
         }
     }
 
-    public void us500NewOrder(String operation, String message, double tp, double sl) {
+    public void sendUs500Order(String operation, String message, double tp, double sl) {
         logger.info("us500NewOrder");
         boolean isBuy = operation.equals("LONG");
         if (accountBalanceHalf > 0) {
@@ -688,11 +700,11 @@ public class CTraderWebSocketClient {
             String positionMessage = "DEMO_MAC_PREDATOR_SCALPER_V1-" + lastTickTime;
             switch(scalperDto.getOperation()) {
                 case "LONG":
-                    sendMarketOrder(symbolId,true, 100,positionMessage, scalperDto.getTp(), scalperDto.getSl());
+                    sendMarketOrder(symbolId,true, 100,"LONG" + positionMessage, scalperDto.getTp(), scalperDto.getSl());
                     scalperService.disable();
                     break;
                 case "SHORT":
-                    sendMarketOrder(symbolId,false, 100,positionMessage,scalperDto.getTp(), scalperDto.getSl());
+                    sendMarketOrder(symbolId,false, 100,"SHORT" + positionMessage,scalperDto.getTp(), scalperDto.getSl());
                     scalperService.disable();
                     break;
                 default:
