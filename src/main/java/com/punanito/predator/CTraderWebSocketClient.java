@@ -108,7 +108,6 @@ public class CTraderWebSocketClient {
 
                                 sendApplicationAuth();
                                 startHeartbeat();
-//                                startGoldSubscription();
 
                                 WebSocket.Listener.super.onOpen(webSocket);
                             }
@@ -217,7 +216,7 @@ public class CTraderWebSocketClient {
 
     // Pobranie szczegółów
     private void sendSymbolById(long id) {
-        logger.info("sendSymbolById: " + id);
+        logger.info("sendSymbolById: {} ", id);
         ProtoOASymbolByIdReq req = ProtoOASymbolByIdReq.newBuilder()
                 .addSymbolId(id)
                 .setCtidTraderAccountId(accountId)
@@ -567,7 +566,7 @@ public class CTraderWebSocketClient {
                     symbolByName.putIfAbsent(symbol.getSymbolName(), (int) symbol.getSymbolId());
                     symbolById.putIfAbsent(symbol.getSymbolId(), symbol.getSymbolName());
                     if(symbol.getSymbolName().contains("500")) {
-                        logger.info("500 symbolName: {} ",symbol.getSymbolName());
+                        logger.info("500 symbolName: {} symbolId: {} ", symbol.getSymbolName(), symbolByName.get(symbol.getSymbolName()));
                     }
                 }
                 logger.info("Załadowano " + symbolByName.size() + " symboli");
@@ -607,9 +606,11 @@ public class CTraderWebSocketClient {
                 int gold = 0;
                 if(findSymbolByName("US500") != null) {
                     us500 = findSymbolByName("US500");
+                    logger.info("US500 symbolId: {} ", us500);
                 }
                 if(findSymbolByName("XAUUSD") != null) {
                     gold = findSymbolByName("XAUUSD");
+                    logger.info("XAUUSD symbolId: {} ", gold);
                 }
 
                 for (ProtoOASymbol protoOASymbol : event.getSymbolList()) {
