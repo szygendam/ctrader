@@ -617,7 +617,9 @@ public class CTraderWebSocketClient {
                 String symbolName = symbolById.get(event.getSymbolId());
 
                 n8nService.sendTicksToN8n(lastBid, lastAsk, symbolName, symbolByName.get(symbolName));
-                handleJavaScalper(lastBid,lastAsk, symbolName, event.getSymbolId(), lastTickTime);
+                if (symbolName.equals("XAUUSD")){
+                    handleJavaScalper(lastBid,lastAsk, symbolName, event.getSymbolId(), lastTickTime);
+                }
             }
 
             case ProtoOAPayloadType.PROTO_OA_EXECUTION_EVENT_VALUE: {
@@ -701,7 +703,7 @@ public class CTraderWebSocketClient {
     }
 
     private void handleJavaScalper(double lastBid, double lastAsk, String symbolName, long symbolId, long lastTickTime) {
-        if (symbolName != null && symbolName.equals("XAUUSD") && scalperService.isEnabled()) {
+        if (symbolName != null && scalperService.isEnabled()) {
             long startFireSignal = System.currentTimeMillis();
 
             ScalperDto scalperDto = scalperService.fireSignal(new PriceRequest(lastBid, lastAsk, symbolId, symbolName, lastTickTime));
