@@ -707,7 +707,7 @@ public class CTraderWebSocketClient {
             long startFireSignal = System.currentTimeMillis();
 
             ScalperDto scalperDto = scalperService.fireSignal(new PriceRequest(lastBid, lastAsk, symbolId, symbolName, lastTickTime));
-            logger.info("fireSignal latency {} ms", System.currentTimeMillis() - startFireSignal);
+            logger.info("fireSignal latency {} ms scalper operation: {} ", System.currentTimeMillis() - startFireSignal, scalperDto.getOperation());
             String positionMessage = "DEMO_MAC_PREDATOR_SCALPER_V1-" + lastTickTime;
             switch (scalperDto.getOperation()) {
                 case "LONG":

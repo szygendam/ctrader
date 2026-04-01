@@ -31,13 +31,18 @@ public class ScalperService {
         if (currentCandleData != null && currentCandleData.getBodyAbs() > 0.3 && priceRequest.getSpread() < 0.5) {
 
             if (GREEN.equals(currentCandleData.getColor())) {
-                return new ScalperDto("LONG");
+                ScalperDto scalperDto = new ScalperDto("LONG");
+                scalperDto.setSl(priceRequest.getLastAsk() - 1.6);
+                scalperDto.setTp(priceRequest.getLastAsk() + 0.6);
+                return scalperDto;
             } else if (RED.equals(currentCandleData.getColor())) {
-                return new ScalperDto("SHORT");
+                ScalperDto scalperDto = new ScalperDto("SHORT");
+                scalperDto.setSl(priceRequest.getLastBid() + 1.6);
+                scalperDto.setTp(priceRequest.getLastBid() - 0.6);
+                return scalperDto;
             }
         }
-
-        return new ScalperDto("SKIP");
+         return new ScalperDto("SKIP");
     }
 
     public boolean isEnabled(){
