@@ -303,8 +303,9 @@ public class CTraderWebSocketClient {
             case "XAUUSD":
                 sendGoldOrder(operation, message, tp, sl);
                 break;
-            case "US 500":
+            case "US500":
                 sendUs500Order(operation, message, tp, sl);
+                break;
             default:
                 logger.error("unhandled symbol new Order" + symbolName);
         }
@@ -316,26 +317,7 @@ public class CTraderWebSocketClient {
         if (accountBalanceHalf > 0) {
 
             long goldId = findSymbolByName("XAUUSD");
-//            double sl = 0;
-//            double tp = 0;
-//
-//            double entry;
-//            if (isBuy) {
-//                entry = lastAsk; // cena, po której ktoś chce sprzedać, czyli Ty jako kupujący musisz ją zaakceptować.
-//                sl = entry - (stopLossPips / Math.pow(10, symbolDigits.get(goldId)));
-//                tp = entry + (takeProfitPips / Math.pow(10, symbolDigits.get(goldId)));
-//            } else {
-//                entry = lastBid; // cena, po której ktoś chce kupić, a Ty sprzedajesz po tej ofercie.
-//                sl = entry + (stopLossPips / Math.pow(10, symbolDigits.get(goldId)));
-//                tp = entry - (takeProfitPips / Math.pow(10, symbolDigits.get(goldId)));
-//            }
-
-//            long volume = calculateDynamicVolume(symbolLotSize.get(goldId), stopLossPips);
             long volume = 100;
-
-//            logger.info("NEW Entry=" + entry + " SL=" + sl + " TP=" + tp + " Vol=" + volume);
-//            ProtoOASymbol xauusd = symbolDetails.get(41);
-//            logger.info("XAUUSD =" + xauusd.toString());
             sendMarketOrder(goldId, isBuy, volume, message, tp, sl);
         }
     }
@@ -352,26 +334,8 @@ public class CTraderWebSocketClient {
                     goldId = findSymbolByName("US500");
                 }
             }
-//            double sl = 0;
-//            double tp = 0;
-//
-//            double entry;
-//            if (isBuy) {
-//                entry = lastAsk; // cena, po której ktoś chce sprzedać, czyli Ty jako kupujący musisz ją zaakceptować.
-//                sl = entry - (stopLossPips / Math.pow(10, symbolDigits.get(goldId)));
-//                tp = entry + (takeProfitPips / Math.pow(10, symbolDigits.get(goldId)));
-//            } else {
-//                entry = lastBid; // cena, po której ktoś chce kupić, a Ty sprzedajesz po tej ofercie.
-//                sl = entry + (stopLossPips / Math.pow(10, symbolDigits.get(goldId)));
-//                tp = entry - (takeProfitPips / Math.pow(10, symbolDigits.get(goldId)));
-//            }
 
-//            long volume = calculateDynamicVolume(symbolLotSize.get(goldId), stopLossPips);
             long volume = 100;
-
-//            logger.info("NEW Entry=" + entry + " SL=" + sl + " TP=" + tp + " Vol=" + volume);
-//            ProtoOASymbol xauusd = symbolDetails.get(41);
-//            logger.info("XAUUSD =" + xauusd.toString());
             sendMarketOrder(goldId, isBuy, volume, message, tp, sl);
         }
     }
