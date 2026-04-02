@@ -6,7 +6,7 @@
 
     <groupId>com.punanito</groupId>
     <artifactId>ctrader.bridge</artifactId>
-    <version>1.1.15</version>
+    <version>1.1.16</version>
     <name>cTrader Bridge</name>
     <description>Bridge service for cTrader Open API v2 Protobuf</description>
 

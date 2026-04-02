@@ -547,7 +547,6 @@ public class CTraderWebSocketClient {
                 } else if (findSymbolByName("US500") != null){
                     sendSymbolById(findSymbolByName("US500"));
                 }
-                sendSymbolById(findSymbolByName("US 500"));
 
             }
             break;
