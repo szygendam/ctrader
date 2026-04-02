@@ -1,15 +1,17 @@
 package com.punanito.predator.model;
 
+import java.math.BigDecimal;
+
 public class CurrentCandleData {
     private CandleColor color;
-    private double priceOpen;
-    private double priceClose;
-    private double high;
-    private double low;
-    private double bodyAbs;
-    private double lowVsHighAbs;
-    private double upperWick;
-    private double lowerWick;
+    private BigDecimal priceOpen;
+    private BigDecimal priceClose;
+    private BigDecimal high;
+    private BigDecimal low;
+    private BigDecimal bodyAbs;
+    private BigDecimal lowVsHighAbs;
+    private BigDecimal upperWick;
+    private BigDecimal lowerWick;
     private long minuteStartTime;
     private int ticksCount;
 
@@ -21,67 +23,67 @@ public class CurrentCandleData {
         this.color = color;
     }
 
-    public double getPriceOpen() {
+    public BigDecimal getPriceOpen() {
         return priceOpen;
     }
 
-    public void setPriceOpen(double priceOpen) {
+    public void setPriceOpen(BigDecimal priceOpen) {
         this.priceOpen = priceOpen;
     }
 
-    public double getPriceClose() {
+    public BigDecimal getPriceClose() {
         return priceClose;
     }
 
-    public void setPriceClose(double priceClose) {
+    public void setPriceClose(BigDecimal priceClose) {
         this.priceClose = priceClose;
     }
 
-    public double getHigh() {
+    public BigDecimal getHigh() {
         return high;
     }
 
-    public void setHigh(double high) {
+    public void setHigh(BigDecimal high) {
         this.high = high;
     }
 
-    public double getLow() {
+    public BigDecimal getLow() {
         return low;
     }
 
-    public void setLow(double low) {
+    public void setLow(BigDecimal low) {
         this.low = low;
     }
 
-    public double getBodyAbs() {
+    public BigDecimal getBodyAbs() {
         return bodyAbs;
     }
 
-    public void setBodyAbs(double bodyAbs) {
+    public void setBodyAbs(BigDecimal bodyAbs) {
         this.bodyAbs = bodyAbs;
     }
 
-    public double getLowVsHighAbs() {
+    public BigDecimal getLowVsHighAbs() {
         return lowVsHighAbs;
     }
 
-    public void setLowVsHighAbs(double lowVsHighAbs) {
+    public void setLowVsHighAbs(BigDecimal lowVsHighAbs) {
         this.lowVsHighAbs = lowVsHighAbs;
     }
 
-    public double getUpperWick() {
+    public BigDecimal getUpperWick() {
         return upperWick;
     }
 
-    public void setUpperWick(double upperWick) {
+    public void setUpperWick(BigDecimal upperWick) {
         this.upperWick = upperWick;
     }
 
-    public double getLowerWick() {
+    public BigDecimal getLowerWick() {
         return lowerWick;
     }
 
-    public void setLowerWick(double lowerWick) {
+    public void setLowerWick(BigDecimal lowerWick) {
         this.lowerWick = lowerWick;
     }
 

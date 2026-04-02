@@ -1,9 +1,11 @@
 package com.punanito.predator.model;
 
+import java.math.BigDecimal;
+
 public class ScalperDto {
     private String operation;
-    private double tp;
-    private double sl;
+    private BigDecimal tp;
+    private BigDecimal sl;
 
     public ScalperDto(String operation) {
         this.operation = operation;
@@ -18,20 +20,19 @@ public class ScalperDto {
         this.operation = operation;
     }
 
-    public double getTp() {
-
+    public BigDecimal getTp() {
         return tp;
     }
 
-    public void setTp(double tp) {
+    public void setTp(BigDecimal tp) {
         this.tp = tp;
     }
 
-    public double getSl() {
+    public BigDecimal getSl() {
         return sl;
     }
 
-    public void setSl(double sl) {
+    public void setSl(BigDecimal sl) {
         this.sl = sl;
     }
 }

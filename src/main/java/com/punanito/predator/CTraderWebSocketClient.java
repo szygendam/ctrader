@@ -343,7 +343,7 @@ public class CTraderWebSocketClient {
 
     private void sendMarketOrder(long symbolId, boolean isBuy, long volume, String clientOrderId,double tp, double sl) {
         logger.info("sendMarketOrder clientOrderId: {} volume: {} sl: {} tp: {} ", clientOrderId, volume,sl,tp);
-        if(tp != 0.0){
+        if(tp != 0.0) {
             logger.info("sendMarketOrder with preset tp: {} sl: {} ", tp, sl);
             ProtoOANewOrderReq req = ProtoOANewOrderReq.newBuilder()
                     .setCtidTraderAccountId(accountId)
@@ -713,11 +713,11 @@ public class CTraderWebSocketClient {
             String positionMessage = "DEMO_MAC_PREDATOR_SCALPER_V1-" + lastTickTime;
             switch (scalperDto.getOperation()) {
                 case "LONG":
-                    sendMarketOrder(symbolId, true, 100, "LONG_" + positionMessage, scalperDto.getTp(), scalperDto.getSl());
+                    sendMarketOrder(symbolId, true, 100, "LONG_" + positionMessage, scalperDto.getTp().doubleValue(), scalperDto.getSl().doubleValue());
                     scalperService.disable();
                     break;
                 case "SHORT":
-                    sendMarketOrder(symbolId, false, 100, "SHORT_" + positionMessage, scalperDto.getTp(), scalperDto.getSl());
+                    sendMarketOrder(symbolId, false, 100, "SHORT_" + positionMessage, scalperDto.getTp().doubleValue(), scalperDto.getSl().doubleValue());
                     scalperService.disable();
                     break;
                 default:

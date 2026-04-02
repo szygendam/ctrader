@@ -7,6 +7,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
+import java.math.BigDecimal;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import static com.punanito.predator.model.CandleColor.GREEN;
@@ -31,18 +32,17 @@ public class ScalperService {
             logger.info(currentCandleData.toString());
         }
 
-        if (currentCandleData != null && currentCandleData.getBodyAbs() > 0.3 && priceRequest.getSpread() < 0.5) {
-
+        if (currentCandleData != null && (currentCandleData.getBodyAbs().compareTo(new BigDecimal("0.3"))  >  0) && priceRequest.getSpread() < 0.5) {
 
             if (GREEN.equals(currentCandleData.getColor())) {
                 ScalperDto scalperDto = new ScalperDto("LONG");
-                scalperDto.setSl(priceRequest.getLastAsk() - 1.6);
-                scalperDto.setTp(priceRequest.getLastAsk() + 0.6);
+                scalperDto.setSl(new BigDecimal(priceRequest.getLastAsk() - 1.6));
+                scalperDto.setTp(new BigDecimal(priceRequest.getLastAsk() + 0.6));
                 return scalperDto;
             } else if (RED.equals(currentCandleData.getColor())) {
                 ScalperDto scalperDto = new ScalperDto("SHORT");
-                scalperDto.setSl(priceRequest.getLastBid() + 1.6);
-                scalperDto.setTp(priceRequest.getLastBid() - 0.6);
+                scalperDto.setSl(new BigDecimal(priceRequest.getLastBid() + 1.6));
+                scalperDto.setTp(new BigDecimal(priceRequest.getLastBid() - 0.6));
                 return scalperDto;
             }
         }

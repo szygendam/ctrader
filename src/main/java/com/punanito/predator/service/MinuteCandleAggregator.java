@@ -5,6 +5,7 @@ import com.punanito.predator.model.CurrentCandleData;
 import com.punanito.predator.model.PriceRequest;
 import org.springframework.stereotype.Service;
 
+import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
@@ -71,36 +72,44 @@ public class MinuteCandleAggregator {
         }
 
         // Zakładam świecę z BID
-        double open = ticks.get(0).getLastBid();
-        double close = ticks.get(ticks.size() - 1).getLastBid();
+        double rawOpen = ticks.get(0).getLastBid();
+        double rawClose = ticks.get(ticks.size() - 1).getLastBid();
 
-        double high = Double.NEGATIVE_INFINITY;
-        double low = Double.POSITIVE_INFINITY;
+        double rawHigh = Double.NEGATIVE_INFINITY;
+        double rawLow = Double.POSITIVE_INFINITY;
 
         for (PriceRequest tick : ticks) {
             double price = tick.getLastBid();
-            if (price > high) {
-                high = price;
+            if (price > rawHigh) {
+                rawHigh = price;
             }
-            if (price < low) {
-                low = price;
+            if (price < rawLow) {
+                rawLow = price;
             }
         }
 
-        double bodyAbs = Math.abs(close - open);
-        double lowVsHighAbs = Math.abs(high - low);
 
-        double upperWick = high - Math.max(open, close);
-        double lowerWick = Math.min(open, close) - low;
 
         CandleColor color;
-        if (close > open) {
+        if (rawClose > rawOpen) {
             color = CandleColor.GREEN;
-        } else if (close < open) {
+        } else if (rawClose < rawOpen) {
             color = CandleColor.RED;
         } else {
             color = CandleColor.DOJI;
         }
+
+        BigDecimal scale = new BigDecimal("100000");
+
+        BigDecimal open = new BigDecimal(rawOpen).divide(scale);
+        BigDecimal close = new BigDecimal(rawClose).divide(scale);
+        BigDecimal high = new BigDecimal(rawHigh).divide(scale);
+        BigDecimal low = new BigDecimal(rawLow).divide(scale);
+
+        BigDecimal bodyAbs = open.subtract(close).abs();
+        BigDecimal rangeAbs = high.subtract(low);
+        BigDecimal upperWick = high.subtract(open.max(close));
+        BigDecimal lowerWick = open.min(close).subtract(low);
 
         CurrentCandleData candle = new CurrentCandleData();
         candle.setMinuteStartTime(currentMinuteStart);
@@ -110,7 +119,7 @@ public class MinuteCandleAggregator {
         candle.setHigh(high);
         candle.setLow(low);
         candle.setBodyAbs(bodyAbs);
-        candle.setLowVsHighAbs(lowVsHighAbs);
+        candle.setLowVsHighAbs(rangeAbs);
         candle.setUpperWick(upperWick);
         candle.setLowerWick(lowerWick);
         candle.setColor(color);
