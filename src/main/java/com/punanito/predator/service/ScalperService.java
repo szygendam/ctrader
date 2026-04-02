@@ -27,10 +27,12 @@ public class ScalperService {
 
     public ScalperDto fireSignal(PriceRequest priceRequest) {
         CurrentCandleData currentCandleData = minuteCandleAggregator.onTick(priceRequest);
-
+        if (currentCandleData != null) {
+            logger.info(currentCandleData.toString());
+        }
 
         if (currentCandleData != null && currentCandleData.getBodyAbs() > 0.3 && priceRequest.getSpread() < 0.5) {
-            logger.info(currentCandleData.toString());
+
 
             if (GREEN.equals(currentCandleData.getColor())) {
                 ScalperDto scalperDto = new ScalperDto("LONG");
