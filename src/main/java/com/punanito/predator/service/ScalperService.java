@@ -3,10 +3,10 @@ package com.punanito.predator.service;
 import com.punanito.predator.model.CurrentCandleData;
 import com.punanito.predator.model.PriceRequest;
 import com.punanito.predator.model.ScalperDto;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
-import java.util.ArrayList;
-import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import static com.punanito.predator.model.CandleColor.GREEN;
@@ -15,11 +15,11 @@ import static com.punanito.predator.model.CandleColor.RED;
 @Service
 public class ScalperService {
 
+    private static final Logger logger = LoggerFactory.getLogger(ScalperService.class);
+
     private final MinuteCandleAggregator minuteCandleAggregator;
 
     private AtomicBoolean javaScalperEnabled = new AtomicBoolean(false);
-
-    List<PriceRequest> ticks = new ArrayList<>();
 
     public ScalperService(MinuteCandleAggregator minuteCandleAggregator) {
         this.minuteCandleAggregator = minuteCandleAggregator;
@@ -28,7 +28,9 @@ public class ScalperService {
     public ScalperDto fireSignal(PriceRequest priceRequest) {
         CurrentCandleData currentCandleData = minuteCandleAggregator.onTick(priceRequest);
 
+
         if (currentCandleData != null && currentCandleData.getBodyAbs() > 0.3 && priceRequest.getSpread() < 0.5) {
+            logger.info(currentCandleData.toString());
 
             if (GREEN.equals(currentCandleData.getColor())) {
                 ScalperDto scalperDto = new ScalperDto("LONG");
