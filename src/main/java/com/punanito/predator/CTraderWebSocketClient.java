@@ -374,11 +374,14 @@ public class CTraderWebSocketClient {
 
     }
 
-
     public void protect(double sl, double tp, long positionId) {
         logger.info("protect sl:{}, tp:{}, positionId:{} ", sl, tp, positionId);
-        if (sl == 0.0 && tp == 0.0) {
+        PositionDto positionDto = positionMap.get(positionId);
+        if (sl == 0.0 && tp == 0.0 || (tp > 8000 || sl< 100)) {
             logger.warn("skipping protect...");
+            return;
+        } else if (positionDto != null && positionDto.getSl() == sl && positionDto.getTp() == tp) {
+            logger.warn("skipping protect the same SL/TP");
             return;
         }
         positionMap.putIfAbsent(positionId, new PositionDto(sl,tp));
@@ -617,7 +620,7 @@ public class CTraderWebSocketClient {
                 String symbolName = symbolById.get(event.getSymbolId());
 
                 n8nService.sendTicksToN8n(lastBid, lastAsk, symbolName, symbolByName.get(symbolName));
-                if (symbolName.equals("XAUUSD")){
+                if (symbolName.equals("XAUUSD") && lastBid > 0 && lastAsk > 0 ){
                     handleJavaScalper(lastBid,lastAsk, symbolName, event.getSymbolId(), lastTickTime);
                 }
             }
@@ -711,11 +714,11 @@ public class CTraderWebSocketClient {
             String positionMessage = "DEMO_MAC_PREDATOR_SCALPER_V1-" + lastTickTime;
             switch (scalperDto.getOperation()) {
                 case "LONG":
-                    sendMarketOrder(symbolId, true, 100, "LONG" + positionMessage, scalperDto.getTp(), scalperDto.getSl());
+                    sendMarketOrder(symbolId, true, 100, "LONG_" + positionMessage, scalperDto.getTp(), scalperDto.getSl());
                     scalperService.disable();
                     break;
                 case "SHORT":
-                    sendMarketOrder(symbolId, false, 100, "SHORT" + positionMessage, scalperDto.getTp(), scalperDto.getSl());
+                    sendMarketOrder(symbolId, false, 100, "SHORT_" + positionMessage, scalperDto.getTp(), scalperDto.getSl());
                     scalperService.disable();
                     break;
                 default:
