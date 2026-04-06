@@ -186,7 +186,7 @@ public class CTraderWebSocketClient {
         unprotectedPositionWatcher.scheduleAtFixedRate(() -> {
             logger.info("start unprotectedPositionWatcher");
             reconcile();
-        }, 1, 1, TimeUnit.MINUTES);
+        }, 30, 10, TimeUnit.SECONDS);
     }
 
     // Autoryzacja aplikacji

@@ -18,7 +18,7 @@ public class PositionIdStore {
     }
 
     private final List<Entry> values = new CopyOnWriteArrayList<>();
-    private final long ttlMillis = 5000;
+    private final long ttlMillis = 60000;
 
     public void add(long value) {
         long now = System.currentTimeMillis();

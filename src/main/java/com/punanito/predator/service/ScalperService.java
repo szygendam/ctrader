@@ -32,7 +32,9 @@ public class ScalperService {
             logger.info(currentCandleData.toString());
         }
 
-        if (currentCandleData != null && (currentCandleData.getBodyAbs().compareTo(new BigDecimal("0.3"))  >  0) && priceRequest.getSpread() < 0.5) {
+        if (currentCandleData != null &&
+                (currentCandleData.getBodyAbs().compareTo(new BigDecimal("0.3"))  >  0)
+                && priceRequest.getSpread() < 0.5) {
 
             if (GREEN.equals(currentCandleData.getColor())) {
                 ScalperDto scalperDto = new ScalperDto("LONG");
