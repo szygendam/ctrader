@@ -58,73 +58,148 @@ public class ScalperService {
             logger.info(currentCandleData + " priceRequest: " + priceRequest);
         }
 
+        if (currentCandleData == null) {
+            return new ScalperDto("SKIP");
+        }
 
-        if (currentCandleData != null
-                && priceRequest.getSpread().compareTo(MAX_SPREAD) < 0
-                && currentCandleData.getBodyAbs().compareTo(MIN_BODY_ABS) > 0) {
+        if (priceRequest.getSpread().compareTo(MAX_SPREAD) >= 0) {
+            return new ScalperDto("SKIP");
+        }
 
-//            if(currentCandleData.getBodyAbs().compareTo(STRONG_BODY_ABS) > 0){
-//                if(isStrongCandleAndPriceInProgressZone(
-//                        currentCandleData,
-//                        priceRequest.getLastBid(),
-//                        priceRequest.getLastAsk(),
-//                        ENTRY_PROGRESS_RATIO)){
-//                }
-//                return new ScalperDto("SKIP");
-//            }
+        if (currentCandleData.getSecondOfMinute() < 10) {
+            return new ScalperDto("SKIP");
+        }
 
-            BigDecimal marketBid = priceRequest.getLastBid()
-                    .divide(PRICE_SCALE_DIVIDER, 5, RoundingMode.HALF_UP);
+        if (currentCandleData.getBodyAbs().compareTo(MIN_BODY_ABS) <= 0) {
+            return new ScalperDto("SKIP");
+        }
 
-            BigDecimal marketAsk = priceRequest.getLastAsk()
-                    .divide(PRICE_SCALE_DIVIDER, 5, RoundingMode.HALF_UP);
+        BigDecimal marketBid = currentCandleData.getCurrentBid();
+        BigDecimal marketAsk = currentCandleData.getCurrentAsk();
+        BigDecimal spread = priceRequest.getSpread();
 
-            BigDecimal spread = priceRequest.getSpread();
+        BigDecimal slDistance = spread.multiply(SL_SPREAD_MULTIPLIER).max(MIN_SL_DISTANCE);
+        BigDecimal slShortDistance = spread.multiply(SL_SPREAD_MULTIPLIER).max(MIN_SL_SHORT_DISTANCE);
+        BigDecimal tpDistance = spread.multiply(TP_SPREAD_MULTIPLIER).max(MIN_TP_DISTANCE);
+        BigDecimal tpShortDistance = spread.multiply(TP_SPREAD_MULTIPLIER).max(MIN_TP_SHORT_DISTANCE);
 
-            BigDecimal slDistance = spread.multiply(SL_SPREAD_MULTIPLIER).max(MIN_SL_DISTANCE);
-            BigDecimal slShortDistance = spread.multiply(SL_SPREAD_MULTIPLIER).max(MIN_SL_SHORT_DISTANCE);
-            BigDecimal tpDistance = spread.multiply(TP_SPREAD_MULTIPLIER).max(MIN_TP_DISTANCE);
-            BigDecimal tpShortDistance = spread.multiply(TP_SPREAD_MULTIPLIER).max(MIN_TP_SHORT_DISTANCE);
+        if (GREEN.equals(currentCandleData.getColor())
+                && currentCandleData.getBodySigned().compareTo(MIN_BODY_ABS) > 0
+                && currentCandleData.getPositionInRange().compareTo(new BigDecimal("0.85")) >= 0
+                && currentCandleData.isNewHighBreak()) {
 
-            if (GREEN.equals(currentCandleData.getColor())) {
-                ScalperDto scalperDto = new ScalperDto("LONG");
+            ScalperDto scalperDto = new ScalperDto("LONG");
 
-                BigDecimal sl = marketAsk
-                        .subtract(slDistance)
-                        .setScale(2, RoundingMode.HALF_UP);
+            BigDecimal sl = marketAsk
+                    .subtract(slDistance)
+                    .setScale(2, RoundingMode.HALF_UP);
 
-                BigDecimal tp = marketAsk
-                        .add(tpDistance)
-                        .setScale(2, RoundingMode.HALF_UP);
+            BigDecimal tp = marketAsk
+                    .add(tpDistance)
+                    .setScale(2, RoundingMode.HALF_UP);
 
-                scalperDto.setSl(sl);
-                scalperDto.setTp(tp);
-                return scalperDto;
+            scalperDto.setSl(sl);
+            scalperDto.setTp(tp);
+            return scalperDto;
+        }
 
-            } else if (RED.equals(currentCandleData.getColor())) {
+        if (RED.equals(currentCandleData.getColor())
+                && currentCandleData.getBodySigned().compareTo(MIN_BODY_ABS.negate()) < 0
+                && currentCandleData.getPositionInRange().compareTo(new BigDecimal("0.15")) <= 0
+                && currentCandleData.isNewLowBreak()
+                && currentCandleData.getBodyAbs().compareTo(STRONG_BODY_ABS) > 0) {
 
-                if(currentCandleData.getBodyAbs().compareTo(STRONG_BODY_ABS) > 0){
-                    ScalperDto scalperDto = new ScalperDto("SHORT");
+            ScalperDto scalperDto = new ScalperDto("SHORT");
 
-                    BigDecimal sl = marketBid
-                            .add(slShortDistance)
-                            .setScale(2, RoundingMode.HALF_UP);
+            BigDecimal sl = marketBid
+                    .add(slShortDistance)
+                    .setScale(2, RoundingMode.HALF_UP);
 
-                    BigDecimal tp = marketBid
-                            .subtract(tpShortDistance)
-                            .setScale(2, RoundingMode.HALF_UP);
+            BigDecimal tp = marketBid
+                    .subtract(tpShortDistance)
+                    .setScale(2, RoundingMode.HALF_UP);
 
-                    scalperDto.setSl(sl);
-                    scalperDto.setTp(tp);
-                    return scalperDto;
-                }
-
-                return new ScalperDto("SKIP");
-            }
+            scalperDto.setSl(sl);
+            scalperDto.setTp(tp);
+            return scalperDto;
         }
 
         return new ScalperDto("SKIP");
     }
+
+//    public ScalperDto fireSignal(PriceRequest priceRequest) {
+//        CurrentCandleData currentCandleData = minuteCandleAggregator.onTick(priceRequest);
+//        if (currentCandleData != null) {
+//            logger.info(currentCandleData + " priceRequest: " + priceRequest);
+//        }
+//
+//
+//        if (currentCandleData != null
+//                && priceRequest.getSpread().compareTo(MAX_SPREAD) < 0
+//                && currentCandleData.getBodyAbs().compareTo(MIN_BODY_ABS) > 0) {
+//
+////            if(currentCandleData.getBodyAbs().compareTo(STRONG_BODY_ABS) > 0){
+////                if(isStrongCandleAndPriceInProgressZone(
+////                        currentCandleData,
+////                        priceRequest.getLastBid(),
+////                        priceRequest.getLastAsk(),
+////                        ENTRY_PROGRESS_RATIO)){
+////                }
+////                return new ScalperDto("SKIP");
+////            }
+//
+//            BigDecimal marketBid = priceRequest.getLastBid()
+//                    .divide(PRICE_SCALE_DIVIDER, 5, RoundingMode.HALF_UP);
+//
+//            BigDecimal marketAsk = priceRequest.getLastAsk()
+//                    .divide(PRICE_SCALE_DIVIDER, 5, RoundingMode.HALF_UP);
+//
+//            BigDecimal spread = priceRequest.getSpread();
+//
+//            BigDecimal slDistance = spread.multiply(SL_SPREAD_MULTIPLIER).max(MIN_SL_DISTANCE);
+//            BigDecimal slShortDistance = spread.multiply(SL_SPREAD_MULTIPLIER).max(MIN_SL_SHORT_DISTANCE);
+//            BigDecimal tpDistance = spread.multiply(TP_SPREAD_MULTIPLIER).max(MIN_TP_DISTANCE);
+//            BigDecimal tpShortDistance = spread.multiply(TP_SPREAD_MULTIPLIER).max(MIN_TP_SHORT_DISTANCE);
+//
+//            if (GREEN.equals(currentCandleData.getColor())) {
+//                ScalperDto scalperDto = new ScalperDto("LONG");
+//
+//                BigDecimal sl = marketAsk
+//                        .subtract(slDistance)
+//                        .setScale(2, RoundingMode.HALF_UP);
+//
+//                BigDecimal tp = marketAsk
+//                        .add(tpDistance)
+//                        .setScale(2, RoundingMode.HALF_UP);
+//
+//                scalperDto.setSl(sl);
+//                scalperDto.setTp(tp);
+//                return scalperDto;
+//
+//            } else if (RED.equals(currentCandleData.getColor())) {
+//
+//                if(currentCandleData.getBodyAbs().compareTo(STRONG_BODY_ABS) > 0){
+//                    ScalperDto scalperDto = new ScalperDto("SHORT");
+//
+//                    BigDecimal sl = marketBid
+//                            .add(slShortDistance)
+//                            .setScale(2, RoundingMode.HALF_UP);
+//
+//                    BigDecimal tp = marketBid
+//                            .subtract(tpShortDistance)
+//                            .setScale(2, RoundingMode.HALF_UP);
+//
+//                    scalperDto.setSl(sl);
+//                    scalperDto.setTp(tp);
+//                    return scalperDto;
+//                }
+//
+//                return new ScalperDto("SKIP");
+//            }
+//        }
+//
+//        return new ScalperDto("SKIP");
+//    }
 
     private boolean isStrongCandleAndPriceInProgressZone(CurrentCandleData candle,
                                                          BigDecimal marketBid,

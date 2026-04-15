@@ -6,6 +6,7 @@ import com.punanito.predator.model.PriceRequest;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
@@ -16,8 +17,11 @@ import java.util.concurrent.atomic.AtomicBoolean;
 @Service
 public class MinuteCandleAggregator {
 
+    private static final BigDecimal PRICE_SCALE = new BigDecimal("100000");
+    private static final int PRICE_SCALE_DIGITS = 5;
+
     private final List<PriceRequest> ticks = new CopyOnWriteArrayList<>();
-    private AtomicBoolean javaScalperSleeping = new AtomicBoolean(false);
+    private final AtomicBoolean javaScalperSleeping = new AtomicBoolean(false);
 
     /**
      * Początek aktualnie obsługiwanej minuty, np. 12:34:00.000
@@ -32,19 +36,10 @@ public class MinuteCandleAggregator {
         this.javaScalperSleeping.set(javaScalperSleeping);
     }
 
-    /**
-     * Przetwarza nowy tick.
-     * - na pierwszym ticku nowej minuty czyści listę
-     * - dodaje bieżący tick
-     * - dopiero od 3 sekundy liczy parametry świecy
-     *
-     * @return CurrentCandleData jeśli sekunda >= 3, w przeciwnym razie null
-     */
     public CurrentCandleData onTick(PriceRequest tick) {
         long tickTime = tick.getCurrentTime();
         long tickMinuteStart = truncateToMinute(tickTime);
 
-        // Pierwszy tick nowej minuty
         if (tickMinuteStart != currentMinuteStart) {
             currentMinuteStart = tickMinuteStart;
             ticks.clear();
@@ -53,12 +48,9 @@ public class MinuteCandleAggregator {
             return null;
         }
 
-        // Ten sam przedział minutowy - dokładamy tick
         ticks.add(tick);
 
         int secondOfMinute = getSecondOfMinute(tickTime);
-
-        // Liczenie dopiero od 3 sekundy
         if (secondOfMinute < 3) {
             return null;
         }
@@ -71,56 +63,109 @@ public class MinuteCandleAggregator {
             return null;
         }
 
-        BigDecimal rawOpen = ticks.get(0).getLastBid();
-        BigDecimal rawClose = ticks.get(ticks.size() - 1).getLastBid();
+        PriceRequest firstTick = ticks.get(0);
+        PriceRequest lastTick = ticks.get(ticks.size() - 1);
 
-        BigDecimal rawHigh = null;
-        BigDecimal rawLow = null;
+        BigDecimal rawOpenBid = firstTick.getLastBid();
+        BigDecimal rawCloseBid = lastTick.getLastBid();
+
+        BigDecimal rawHighBid = null;
+        BigDecimal rawLowBid = null;
+
+        BigDecimal spreadMin = null;
+        BigDecimal spreadMax = null;
+        BigDecimal spreadSum = BigDecimal.ZERO;
 
         for (PriceRequest tick : ticks) {
-            BigDecimal price = tick.getLastBid();
+            BigDecimal bid = tick.getLastBid();
 
-            if (rawHigh == null || price.compareTo(rawHigh) > 0) {
-                rawHigh = price;
+            if (rawHighBid == null || bid.compareTo(rawHighBid) > 0) {
+                rawHighBid = bid;
             }
-            if (rawLow == null || price.compareTo(rawLow) < 0) {
-                rawLow = price;
+            if (rawLowBid == null || bid.compareTo(rawLowBid) < 0) {
+                rawLowBid = bid;
+            }
+
+            BigDecimal spread = tick.getSpread();
+            if (spread != null) {
+                if (spreadMin == null || spread.compareTo(spreadMin) < 0) {
+                    spreadMin = spread;
+                }
+                if (spreadMax == null || spread.compareTo(spreadMax) > 0) {
+                    spreadMax = spread;
+                }
+                spreadSum = spreadSum.add(spread);
             }
         }
 
         CandleColor color;
-        if (rawClose.compareTo(rawOpen) > 0) {
+        if (rawCloseBid.compareTo(rawOpenBid) > 0) {
             color = CandleColor.GREEN;
-        } else if (rawClose.compareTo(rawOpen) < 0) {
+        } else if (rawCloseBid.compareTo(rawOpenBid) < 0) {
             color = CandleColor.RED;
         } else {
             color = CandleColor.DOJI;
         }
 
-        BigDecimal scale = new BigDecimal("100000");
-
-        BigDecimal open = rawOpen.divide(scale);
-        BigDecimal close = rawClose.divide(scale);
-        BigDecimal high = rawHigh.divide(scale);
-        BigDecimal low = rawLow.divide(scale);
+        BigDecimal open = rawOpenBid.divide(PRICE_SCALE, PRICE_SCALE_DIGITS, RoundingMode.HALF_UP);
+        BigDecimal close = rawCloseBid.divide(PRICE_SCALE, PRICE_SCALE_DIGITS, RoundingMode.HALF_UP);
+        BigDecimal high = rawHighBid.divide(PRICE_SCALE, PRICE_SCALE_DIGITS, RoundingMode.HALF_UP);
+        BigDecimal low = rawLowBid.divide(PRICE_SCALE, PRICE_SCALE_DIGITS, RoundingMode.HALF_UP);
 
         BigDecimal bodyAbs = open.subtract(close).abs();
+        BigDecimal bodySigned = close.subtract(open);
         BigDecimal rangeAbs = high.subtract(low);
         BigDecimal upperWick = high.subtract(open.max(close));
         BigDecimal lowerWick = open.min(close).subtract(low);
 
+        BigDecimal currentBid = lastTick.getLastBid().divide(PRICE_SCALE, PRICE_SCALE_DIGITS, RoundingMode.HALF_UP);
+        BigDecimal currentAsk = lastTick.getLastAsk().divide(PRICE_SCALE, PRICE_SCALE_DIGITS, RoundingMode.HALF_UP);
+        BigDecimal currentSpread = lastTick.getSpread();
+
+        BigDecimal positionInRange = BigDecimal.ZERO;
+        if (rangeAbs.compareTo(BigDecimal.ZERO) > 0) {
+            positionInRange = close.subtract(low)
+                    .divide(rangeAbs, 5, RoundingMode.HALF_UP);
+        }
+
+        BigDecimal spreadAvg = ticks.isEmpty()
+                ? BigDecimal.ZERO
+                : spreadSum.divide(BigDecimal.valueOf(ticks.size()), 5, RoundingMode.HALF_UP);
+
+        boolean newHighBreak = rawCloseBid.compareTo(rawHighBid) == 0;
+        boolean newLowBreak = rawCloseBid.compareTo(rawLowBid) == 0;
+
+        int secondOfMinute = getSecondOfMinute(lastTick.getCurrentTime());
+
         CurrentCandleData candle = new CurrentCandleData();
         candle.setMinuteStartTime(currentMinuteStart);
         candle.setTicksCount(ticks.size());
+
         candle.setPriceOpen(open);
         candle.setPriceClose(close);
         candle.setHigh(high);
         candle.setLow(low);
+
         candle.setBodyAbs(bodyAbs);
+        candle.setBodySigned(bodySigned);
         candle.setLowVsHighAbs(rangeAbs);
         candle.setUpperWick(upperWick);
         candle.setLowerWick(lowerWick);
         candle.setColor(color);
+
+        candle.setPositionInRange(positionInRange);
+        candle.setSecondOfMinute(secondOfMinute);
+
+        candle.setCurrentBid(currentBid);
+        candle.setCurrentAsk(currentAsk);
+        candle.setCurrentSpread(currentSpread);
+
+        candle.setSpreadMin(spreadMin);
+        candle.setSpreadMax(spreadMax);
+        candle.setSpreadAvg(spreadAvg);
+
+        candle.setNewHighBreak(newHighBreak);
+        candle.setNewLowBreak(newLowBreak);
 
         return candle;
     }
