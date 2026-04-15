@@ -19,20 +19,18 @@ public class ScalperService {
 
     private static final Logger logger = LoggerFactory.getLogger(ScalperService.class);
 
-    private static final BigDecimal PRICE_SCALE_DIVIDER = new BigDecimal("100000");
+    private static final BigDecimal MAX_SPREAD = new BigDecimal("0.25");
 
-    private static final BigDecimal SL_SPREAD_MULTIPLIER = new BigDecimal("9");
-    private static final BigDecimal TP_SPREAD_MULTIPLIER = new BigDecimal("3");
-    private static final BigDecimal ENTRY_PROGRESS_RATIO = new BigDecimal("0.90");
+    private static final BigDecimal MIN_BODY_ABS = new BigDecimal("1.0");
+    private static final BigDecimal STRONG_BODY_ABS = new BigDecimal("1.2");
 
-    private static final BigDecimal MIN_SL_DISTANCE = new BigDecimal("1.8");
-    private static final BigDecimal MIN_SL_SHORT_DISTANCE = new BigDecimal("1.8");
-    private static final BigDecimal MIN_TP_DISTANCE = new BigDecimal("0.4");
-    private static final BigDecimal MIN_TP_SHORT_DISTANCE = new BigDecimal("0.3");
+    private static final BigDecimal SL_SPREAD_MULTIPLIER = new BigDecimal("2.0");
+    private static final BigDecimal TP_SPREAD_MULTIPLIER = new BigDecimal("1.5");
 
-    private static final BigDecimal MIN_BODY_ABS = new BigDecimal("0.3");
-    private static final BigDecimal STRONG_BODY_ABS = new BigDecimal("2.0");
-    private static final BigDecimal MAX_SPREAD = new BigDecimal("0.6");
+    private static final BigDecimal MIN_SL_DISTANCE = new BigDecimal("0.4");
+    private static final BigDecimal MIN_SL_SHORT_DISTANCE = new BigDecimal("0.4");
+    private static final BigDecimal MIN_TP_DISTANCE = new BigDecimal("1.0");
+    private static final BigDecimal MIN_TP_SHORT_DISTANCE = new BigDecimal("1.0");
 
     private final MinuteCandleAggregator minuteCandleAggregator;
 
