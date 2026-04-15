@@ -24,6 +24,11 @@ public class ScalperService {
     private static final BigDecimal MIN_BODY_ABS = new BigDecimal("1.0");
     private static final BigDecimal STRONG_BODY_ABS = new BigDecimal("1.2");
 
+    private static final BigDecimal LONG_POSITION_IN_RANGE = new BigDecimal("0.85");
+    private static final BigDecimal SHORT_POSITION_IN_RANGE = new BigDecimal("0.15");
+
+    private static final int MIN_SECOND_OF_MINUTE = 10;
+
     private static final BigDecimal SL_SPREAD_MULTIPLIER = new BigDecimal("2.0");
     private static final BigDecimal TP_SPREAD_MULTIPLIER = new BigDecimal("1.5");
 
@@ -64,7 +69,7 @@ public class ScalperService {
             return new ScalperDto("SKIP");
         }
 
-        if (currentCandleData.getSecondOfMinute() < 10) {
+        if (currentCandleData.getSecondOfMinute() < MIN_SECOND_OF_MINUTE) {
             return new ScalperDto("SKIP");
         }
 
@@ -83,7 +88,7 @@ public class ScalperService {
 
         if (GREEN.equals(currentCandleData.getColor())
                 && currentCandleData.getBodySigned().compareTo(MIN_BODY_ABS) > 0
-                && currentCandleData.getPositionInRange().compareTo(new BigDecimal("0.85")) >= 0
+                && currentCandleData.getPositionInRange().compareTo(LONG_POSITION_IN_RANGE) >= 0
                 && currentCandleData.isNewHighBreak()) {
 
             ScalperDto scalperDto = new ScalperDto("LONG");
@@ -103,7 +108,7 @@ public class ScalperService {
 
         if (RED.equals(currentCandleData.getColor())
                 && currentCandleData.getBodySigned().compareTo(MIN_BODY_ABS.negate()) < 0
-                && currentCandleData.getPositionInRange().compareTo(new BigDecimal("0.15")) <= 0
+                && currentCandleData.getPositionInRange().compareTo(SHORT_POSITION_IN_RANGE) <= 0
                 && currentCandleData.isNewLowBreak()
                 && currentCandleData.getBodyAbs().compareTo(STRONG_BODY_ABS) > 0) {
 
