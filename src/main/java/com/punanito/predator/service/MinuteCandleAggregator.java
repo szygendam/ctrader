@@ -9,14 +9,14 @@ import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
-import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 @Service
 public class MinuteCandleAggregator {
 
-    private final List<PriceRequest> ticks = new ArrayList<>();
+    private final List<PriceRequest> ticks = new CopyOnWriteArrayList<>();
     private AtomicBoolean javaScalperSleeping = new AtomicBoolean(false);
 
     /**
@@ -50,7 +50,7 @@ public class MinuteCandleAggregator {
             ticks.clear();
             javaScalperSleeping.set(false);
             ticks.add(tick);
-            return null; // sekundy 0..2 i tak jeszcze nie liczysz
+            return null;
         }
 
         // Ten sam przedział minutowy - dokładamy tick
@@ -71,29 +71,27 @@ public class MinuteCandleAggregator {
             return null;
         }
 
-        // Zakładam świecę z BID
-        double rawOpen = ticks.get(0).getLastBid();
-        double rawClose = ticks.get(ticks.size() - 1).getLastBid();
+        BigDecimal rawOpen = ticks.get(0).getLastBid();
+        BigDecimal rawClose = ticks.get(ticks.size() - 1).getLastBid();
 
-        double rawHigh = Double.NEGATIVE_INFINITY;
-        double rawLow = Double.POSITIVE_INFINITY;
+        BigDecimal rawHigh = null;
+        BigDecimal rawLow = null;
 
         for (PriceRequest tick : ticks) {
-            double price = tick.getLastBid();
-            if (price > rawHigh) {
+            BigDecimal price = tick.getLastBid();
+
+            if (rawHigh == null || price.compareTo(rawHigh) > 0) {
                 rawHigh = price;
             }
-            if (price < rawLow) {
+            if (rawLow == null || price.compareTo(rawLow) < 0) {
                 rawLow = price;
             }
         }
 
-
-
         CandleColor color;
-        if (rawClose > rawOpen) {
+        if (rawClose.compareTo(rawOpen) > 0) {
             color = CandleColor.GREEN;
-        } else if (rawClose < rawOpen) {
+        } else if (rawClose.compareTo(rawOpen) < 0) {
             color = CandleColor.RED;
         } else {
             color = CandleColor.DOJI;
@@ -101,10 +99,10 @@ public class MinuteCandleAggregator {
 
         BigDecimal scale = new BigDecimal("100000");
 
-        BigDecimal open = new BigDecimal(rawOpen).divide(scale);
-        BigDecimal close = new BigDecimal(rawClose).divide(scale);
-        BigDecimal high = new BigDecimal(rawHigh).divide(scale);
-        BigDecimal low = new BigDecimal(rawLow).divide(scale);
+        BigDecimal open = rawOpen.divide(scale);
+        BigDecimal close = rawClose.divide(scale);
+        BigDecimal high = rawHigh.divide(scale);
+        BigDecimal low = rawLow.divide(scale);
 
         BigDecimal bodyAbs = open.subtract(close).abs();
         BigDecimal rangeAbs = high.subtract(low);

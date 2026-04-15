@@ -10,16 +10,30 @@ import java.util.concurrent.Executor;
 @EnableAsync
 public class AsyncConfig {
 
-    @Bean(name = "n8nAsyncExecutor")
-    public Executor appAsyncExecutor() {
+    @Bean(name = "n8nTickExecutor")
+    public Executor n8nTickExecutor() {
         ThreadPoolTaskExecutor exec = new ThreadPoolTaskExecutor();
         exec.setCorePoolSize(4);
         exec.setMaxPoolSize(16);
-        exec.setQueueCapacity(500);
-        exec.setThreadNamePrefix("n8n-ticks-async-");
+        exec.setQueueCapacity(10);
+        exec.setThreadNamePrefix("n8n-tick-worker-");
         exec.setWaitForTasksToCompleteOnShutdown(true);
         exec.setAwaitTerminationSeconds(30);
         exec.initialize();
         return exec;
     }
+
+    @Bean(name = "n8nOrderExecutor")
+    public Executor n8nOrderExecutor() {
+        ThreadPoolTaskExecutor exec = new ThreadPoolTaskExecutor();
+        exec.setCorePoolSize(4);
+        exec.setMaxPoolSize(10);
+        exec.setQueueCapacity(10);
+        exec.setThreadNamePrefix("n8n-order-worker-");
+        exec.setWaitForTasksToCompleteOnShutdown(true);
+        exec.setAwaitTerminationSeconds(30);
+        exec.initialize();
+        return exec;
+    }
+
 }

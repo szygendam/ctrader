@@ -25,6 +25,7 @@ public class ScalperController {
     public ResponseEntity<Void> enable() {
         logger.info("Received scalper enable");
         scalperService.enable();
+        scalperService.releasePositionSlot();
         return ResponseEntity.ok().build();
     }
 

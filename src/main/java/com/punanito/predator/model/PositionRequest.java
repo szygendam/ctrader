@@ -2,6 +2,7 @@ package com.punanito.predator.model;
 
 public class PositionRequest {
     private long positionId;
+    private long accountBalance;
     private long orderId;
     private double sl;
     private double tp;
@@ -12,9 +13,10 @@ public class PositionRequest {
     private String orderStatus;
     private String executionType;
     private boolean positionNotFound;
+    private double grossProfit;
 
     public PositionRequest(long positionId, String clientId, long orderId, String positionStatus, String orderStatus,
-                           String executionType, String clientId1, double priceOpen, double tp, double sl, double execPrice, boolean positionNotFound) {
+                           String executionType, String clientId1, double priceOpen, double tp, double sl, double execPrice, boolean positionNotFound, double grossProfit, long accountBalance) {
         this.positionId = positionId;
         this.clientId = clientId;
         this.orderId = orderId;
@@ -27,6 +29,8 @@ public class PositionRequest {
         this.tp = tp;
         this.sl = sl;
         this.positionNotFound = positionNotFound;
+        this.grossProfit = grossProfit;
+        this.accountBalance = accountBalance;
     }
 
     public PositionRequest(long positionId) {
@@ -119,5 +123,21 @@ public class PositionRequest {
 
     public void setPositionNotFound(boolean positionNotFound) {
         this.positionNotFound = positionNotFound;
+    }
+
+    public long getAccountBalance() {
+        return accountBalance;
+    }
+
+    public void setAccountBalance(long accountBalance) {
+        this.accountBalance = accountBalance;
+    }
+
+    public double getGrossProfit() {
+        return grossProfit;
+    }
+
+    public void setGrossProfit(double grossProfit) {
+        this.grossProfit = grossProfit;
     }
 }

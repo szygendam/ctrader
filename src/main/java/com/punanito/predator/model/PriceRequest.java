@@ -1,49 +1,63 @@
 package com.punanito.predator.model;
 
 
+import java.math.BigDecimal;
+
 public class PriceRequest extends SymbolRequest {
-    private double lastBid;
-    private double lastAsk;
-    private double spread;
+    private BigDecimal lastBid;
+    private BigDecimal lastAsk;
+    private BigDecimal spread;
     private long currentTime;
 
 
-    public PriceRequest(double lastBid, double lastAsk, long symbolId, String symbolName) {
+    public PriceRequest(BigDecimal lastBid, BigDecimal lastAsk, long symbolId, String symbolName) {
          this(lastBid, lastAsk, symbolId, symbolName, System.currentTimeMillis());
     }
 
-    public PriceRequest(double lastBid, double lastAsk, long symbolId, String symbolName,long currentTime) {
+    public PriceRequest(BigDecimal lastBid, BigDecimal lastAsk, long symbolId, String symbolName,long currentTime) {
         super(symbolId,symbolName);
         this.lastBid = lastBid;
         this.lastAsk = lastAsk;
-        if(lastBid == 0 || lastAsk == 0){
-            this.spread = 0.0;
+        if(lastBid.compareTo(new BigDecimal(0)) == 0 ||
+                lastAsk.compareTo(new BigDecimal(0)) == 0){
+            this.spread = new BigDecimal(0);
         } else {
-            this.spread =  lastAsk - lastBid;
+            this.spread =  (lastAsk.subtract(lastBid)).divide(new BigDecimal(100000)) ;
         }
         this.currentTime = currentTime;
     }
 
-    public double getLastBid() {
+    public BigDecimal getLastBid() {
         return lastBid;
     }
 
-    public double getLastAsk() {
+    public BigDecimal getLastAsk() {
         return lastAsk;
     }
-    public double getSpread() {
+    public BigDecimal getSpread() {
         return spread;
     }
-    public void setLastBid(double lastBid) {
+    public void setLastBid(BigDecimal lastBid) {
         this.lastBid = lastBid;
     }
-    public void setLastAsk(double lastAsk) {
+    public void setLastAsk(BigDecimal lastAsk) {
         this.lastAsk = lastAsk;
     }
-    public void setSpread(double spread) {
+    public void setSpread(BigDecimal spread) {
         this.spread = spread;
     }
     public void setCurrentTime(long currentTime) {this.currentTime = currentTime;}
     public long getCurrentTime() {return currentTime;}
 
+    @Override
+    public String toString() {
+        return "PriceRequest{" +
+                "symbolId=" + getId() +
+                ", symbolName='" + getName() + '\'' +
+                ", lastBid=" + lastBid +
+                ", lastAsk=" + lastAsk +
+                ", spread=" + spread +
+                ", currentTime=" + currentTime +
+                '}';
+    }
 }

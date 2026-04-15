@@ -1,6 +1,7 @@
 package com.punanito.predator;
 
 import com.google.protobuf.InvalidProtocolBufferException;
+import com.google.protobuf.Message;
 import com.punanito.predator.model.PositionDto;
 import com.punanito.predator.model.PriceRequest;
 import com.punanito.predator.model.ScalperDto;
@@ -26,14 +27,13 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.WebSocket;
 import java.nio.ByteBuffer;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.UUID;
+import java.util.*;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.stream.Collectors;
 
 @Component
 public class CTraderWebSocketClient {
@@ -56,12 +56,13 @@ public class CTraderWebSocketClient {
     private Map<Long, PositionDto> positionMap = new HashMap<>();
     private double accountBalance = 0.0;
     private double accountBalanceHalf = 500;
-    private double lastBid = 0;
-    private double lastAsk = 0;
+    private long lastBid = 0;
+    private long lastAsk = 0;
     private ScheduledExecutorService heartbeatScheduler;
     private ScheduledExecutorService ticksWatcher;
     private ScheduledExecutorService unprotectedPositionWatcher;
     private AtomicLong lastPosition = new AtomicLong(0);
+    private List<Long> reconcilePositionIdList = new ArrayList<>();
 
 
     private final N8nService n8nService;
@@ -174,7 +175,6 @@ public class CTraderWebSocketClient {
                     n8nService.connectToN8n();
                 } else {
                     logger.info("connectErrorCount >= 3 skipping connectToN8n");
-                    logout();
                 }
             }
         }, 2, 20, TimeUnit.SECONDS);
@@ -185,7 +185,7 @@ public class CTraderWebSocketClient {
         unprotectedPositionWatcher = Executors.newScheduledThreadPool(1);
         unprotectedPositionWatcher.scheduleAtFixedRate(() -> {
             logger.info("start unprotectedPositionWatcher");
-            reconcile();
+            closeNotProtected();
         }, 30, 10, TimeUnit.SECONDS);
     }
 
@@ -248,7 +248,7 @@ public class CTraderWebSocketClient {
     }
 
     // 🔌 Wysyłanie wiadomości
-    private void send(com.google.protobuf.Message payload, int payloadType) {
+    private void send(Message payload, int payloadType) {
 
         ProtoMessage message = ProtoMessage.newBuilder()
                 .setPayloadType(payloadType)
@@ -274,8 +274,11 @@ public class CTraderWebSocketClient {
     }
 
 
-    private void unsubscribeFromSpots(long symbolId) {
+    private void unsubscribeFromSpots(Integer symbolId) {
         logger.info("unsubscribeFromSpots " + symbolId);
+        if (symbolId == null) {
+            return;
+        }
         ProtoOAUnsubscribeSpotsReq req = ProtoOAUnsubscribeSpotsReq.newBuilder()
                 .setCtidTraderAccountId(accountId)
                 .addSymbolId(symbolId)
@@ -284,21 +287,21 @@ public class CTraderWebSocketClient {
         send(req, ProtoOAPayloadType.PROTO_OA_UNSUBSCRIBE_SPOTS_REQ_VALUE);
     }
 
-    public void sendDealList() {
-        logger.info("sendDealList");
-        try {
-            ProtoOAApplicationAuthReq req = ProtoOAApplicationAuthReq.newBuilder()
-                    .setClientId(CLIENT_ID)
-                    .setClientSecret(CLIENT_SECRET)
-                    .build();
-            send(req, ProtoOAPayloadType.PROTO_OA_APPLICATION_AUTH_REQ_VALUE);
-        } catch (Exception e) {
-            logger.error("sendApplicationAuth failed", e);
-            throw e;
-        }
-    }
+//    public void sendDealList() {
+//        logger.info("sendDealList");
+//        try {
+//            ProtoOAApplicationAuthReq req = ProtoOAApplicationAuthReq.newBuilder()
+//                    .setClientId(CLIENT_ID)
+//                    .setClientSecret(CLIENT_SECRET)
+//                    .build();
+//            send(req, ProtoOAPayloadType.PROTO_OA_APPLICATION_AUTH_REQ_VALUE);
+//        } catch (Exception e) {
+//            logger.error("sendApplicationAuth failed", e);
+//            throw e;
+//        }
+//    }
 
-    public void sendOrder(String operation, String message, double tp, double sl, String symbolName) {
+    public void sendOrder(String operation, String message, long tp, long sl, String symbolName) {
         switch(symbolName) {
             case "XAUUSD":
                 sendGoldOrder(operation, message, tp, sl);
@@ -311,7 +314,11 @@ public class CTraderWebSocketClient {
         }
     }
 
-    public void sendGoldOrder(String operation, String message, double tp, double sl) {
+    public void sendOrder(String operation, String message, String symbolName) {
+        sendOrder(operation, message, 0, 0, symbolName);
+    }
+
+    public void sendGoldOrder(String operation, String message, long tp, long sl) {
         logger.info("sendGoldOrder");
         boolean isBuy = operation.equals("LONG");
         if (accountBalanceHalf > 0) {
@@ -322,7 +329,7 @@ public class CTraderWebSocketClient {
         }
     }
 
-    public void sendUs500Order(String operation, String message, double tp, double sl) {
+    public void sendUs500Order(String operation, String message, long tp, long sl) {
         logger.info("us500NewOrder");
         boolean isBuy = operation.equals("LONG");
         if (accountBalanceHalf > 0) {
@@ -341,9 +348,9 @@ public class CTraderWebSocketClient {
     }
 
 
-    private void sendMarketOrder(long symbolId, boolean isBuy, long volume, String clientOrderId,double tp, double sl) {
+    private void sendMarketOrder(long symbolId, boolean isBuy, long volume, String clientOrderId,long tp, long sl) {
         logger.info("sendMarketOrder clientOrderId: {} volume: {} sl: {} tp: {} ", clientOrderId, volume,sl,tp);
-        if(tp != 0.0) {
+        if(tp != 0) {
             logger.info("sendMarketOrder with preset tp: {} sl: {} ", tp, sl);
             ProtoOANewOrderReq req = ProtoOANewOrderReq.newBuilder()
                     .setCtidTraderAccountId(accountId)
@@ -354,8 +361,8 @@ public class CTraderWebSocketClient {
                             : ProtoOATradeSide.SELL)
                     .setVolume(volume)
                     .setClientOrderId(clientOrderId)
-                .setTakeProfit(tp)
-                .setStopLoss(sl)
+                .setRelativeTakeProfit(tp)
+                .setRelativeStopLoss(sl)
                     .build();
             send(req, ProtoOAPayloadType.PROTO_OA_NEW_ORDER_REQ_VALUE);
         } else {
@@ -374,10 +381,82 @@ public class CTraderWebSocketClient {
 
     }
 
+    private void sendScalperMarketOrder(long symbolId,
+                                        boolean isBuy,
+                                        long volume,
+                                        String clientOrderId,
+                                        ScalperDto scalperDto,
+                                        long lastBid,
+                                        long lastAsk) {
+
+        BigDecimal scale = new BigDecimal("100000");
+
+        BigDecimal entryPrice;
+        BigDecimal slAbs = scalperDto.getSl();
+        BigDecimal tpAbs = scalperDto.getTp();
+
+        long relativeSl;
+        long relativeTp;
+
+        if (isBuy) {
+            entryPrice = BigDecimal.valueOf(lastAsk)
+                    .divide(scale, 5, RoundingMode.HALF_UP);
+
+            relativeSl = entryPrice.subtract(slAbs)
+                    .multiply(scale)
+                    .longValueExact();
+
+            relativeTp = tpAbs.subtract(entryPrice)
+                    .multiply(scale)
+                    .longValueExact();
+        } else {
+            entryPrice = BigDecimal.valueOf(lastBid)
+                    .divide(scale, 5, RoundingMode.HALF_UP);
+
+            relativeSl = slAbs.subtract(entryPrice)
+                    .multiply(scale)
+                    .longValueExact();
+
+            relativeTp = entryPrice.subtract(tpAbs)
+                    .multiply(scale)
+                    .longValueExact();
+        }
+
+        logger.info("sendMarketOrder clientOrderId: {} volume: {} slAbs: {} tpAbs: {} entryPrice: {} relativeSl: {} relativeTp: {}",
+                clientOrderId, volume, slAbs, tpAbs, entryPrice, relativeSl, relativeTp);
+
+        // tutaj builder do cTrader:
+        // ProtoOANewOrderReq.Builder builder = ProtoOANewOrderReq.newBuilder();
+        // builder.setSymbolId(symbolId);
+        // builder.setTradeSide(isBuy ? ProtoOATradeSide.BUY : ProtoOATradeSide.SELL);
+        // builder.setVolume(volume);
+        // builder.setClientOrderId(clientOrderId);
+        // builder.setRelativeStopLoss(relativeSl);
+        // builder.setRelativeTakeProfit(relativeTp);
+
+        // send...
+
+        ProtoOANewOrderReq req = ProtoOANewOrderReq.newBuilder()
+                .setCtidTraderAccountId(accountId)
+                .setSymbolId(symbolId)
+                .setOrderType(ProtoOAOrderType.MARKET)
+                .setTradeSide(isBuy
+                        ? ProtoOATradeSide.BUY
+                        : ProtoOATradeSide.SELL)
+                .setVolume(volume)
+                .setClientOrderId(clientOrderId)
+                .setRelativeTakeProfit(relativeTp)
+                .setRelativeStopLoss(relativeSl)
+                .build();
+        send(req, ProtoOAPayloadType.PROTO_OA_NEW_ORDER_REQ_VALUE);
+    }
+
     public void protect(double sl, double tp, long positionId) {
         logger.info("protect sl:{}, tp:{}, positionId:{} ", sl, tp, positionId);
         PositionDto positionDto = positionMap.get(positionId);
-        if (sl == 0.0 && tp == 0.0 || (tp > 8000 || sl< 100)) {
+        if (sl == 0.0 && tp == 0.0 ||
+                (tp > 8000 || sl< 100) ||
+                sl == tp) {
             logger.warn("skipping protect...");
             return;
         } else if (positionDto != null && positionDto.getSl() == sl && positionDto.getTp() == tp) {
@@ -473,15 +552,12 @@ public class CTraderWebSocketClient {
                     if(!protoOAPosition.hasStopLoss()) {
                         close(protoOAPosition.getPositionId());
                     }
-
                 }
 
-//                for (ProtoOAOrder protoOAOrder : res.getOrderList()) {
-//                    logger.info("protoOAOrder " + protoOAOrder.toString());
-//                    if (!protoOAOrder.hasStopLoss() ){
-//                        close(protoOAOrder.getPositionId());
-//                    }
-//                }
+                reconcilePositionIdList = res.getPositionList().stream()
+                        .map(ProtoOAPosition::getPositionId)
+                        .collect(Collectors.toList());
+
             }
             break;
 
@@ -587,7 +663,7 @@ public class CTraderWebSocketClient {
                     if (symbolId == gold) {
                         subscribeGold();
                     } else if (symbolId == us500){
-                        subscribeUS500();
+//                        subscribeUS500();
                     }
                 }
             }
@@ -617,10 +693,11 @@ public class CTraderWebSocketClient {
                 lastTickTime = System.currentTimeMillis();
                 connectErrorCount = 0;
                 String symbolName = symbolById.get(event.getSymbolId());
-
-                n8nService.sendTicksToN8n(lastBid, lastAsk, symbolName, symbolByName.get(symbolName));
-                if (symbolName.equals("XAUUSD") && lastBid > 0 && lastAsk > 0 ){
-                    handleJavaScalper(lastBid,lastAsk, symbolName, event.getSymbolId(), lastTickTime);
+                if(symbolName != null){
+                    n8nService.sendTicksToN8n(lastBid, lastAsk, symbolName, symbolByName.get(symbolName));
+                    if ("XAUUSD".equals(symbolName)  && lastBid > 0 && lastAsk > 0 ){
+                        handleJavaScalper(lastBid,lastAsk, symbolName, event.getSymbolId(), lastTickTime);
+                    }
                 }
             }
 
@@ -655,7 +732,24 @@ public class CTraderWebSocketClient {
                         }
                     }
 
+                    double grossProfit = 0;
+                    long accountBalance = 0;
+
                     if (event.hasPosition()) {
+                        if (event.hasDeal()) {
+                            logger.info("DEAL ID: " + event.getDeal().getDealId());
+                            logger.info("DEAL STATUS: " + event.getDeal().getDealStatus());
+                            logger.info("CLOSE POSITION ENTRY PRICE: " + event.getDeal().getClosePositionDetail().getEntryPrice());
+                            logger.info("CLOSE POSITION GROSS PROFIT: " + event.getDeal().getClosePositionDetail().getGrossProfit());
+                            logger.info("CLOSE POSITION COMMISSION: " + event.getDeal().getClosePositionDetail().getCommission());
+                            logger.info("CLOSE POSITION SWAP: " + event.getDeal().getClosePositionDetail().getSwap());
+                            logger.info("CLOSE POSITION BALANCE: " + event.getDeal().getClosePositionDetail().getBalance());
+                            logger.info("CLOSE POSITION VOLUME: " + event.getDeal().getClosePositionDetail().getClosedVolume());
+                            logger.info("CLOSE POSITION DIGITS: " + event.getDeal().getClosePositionDetail().getMoneyDigits());
+                            grossProfit = event.getDeal().getClosePositionDetail().getGrossProfit();
+                            accountBalance = event.getDeal().getClosePositionDetail().getBalance();
+                        }
+
                         logger.info("POSITION ID: " + event.getPosition().getPositionId());
                         logger.info("POSITION STATUS: " + event.getPosition().getPositionStatus());
                         logger.info("POSITION SL: " + event.getPosition().getStopLoss());
@@ -675,7 +769,7 @@ public class CTraderWebSocketClient {
                                 event.getPosition().getPrice(),
                                 event.getPosition().getStopLoss(),
                                 event.getPosition().getTakeProfit(),
-                                execPrice, false
+                                execPrice, false, grossProfit, accountBalance
                         );
                     }
                 } catch(Exception ex){
@@ -704,25 +798,39 @@ public class CTraderWebSocketClient {
         }
     }
 
-    private void handleJavaScalper(double lastBid, double lastAsk, String symbolName, long symbolId, long lastTickTime) {
-        if (symbolName != null && scalperService.isEnabled()) {
-            long startFireSignal = System.currentTimeMillis();
+    private void handleJavaScalper(long lastBid, long lastAsk, String symbolName, long symbolId, long lastTickTime) {
+        long startFireSignal = System.currentTimeMillis();
+        if (scalperService.tryAcquirePositionSlot()) {
 
-            ScalperDto scalperDto = scalperService.fireSignal(new PriceRequest(lastBid, lastAsk, symbolId, symbolName, lastTickTime));
+            ScalperDto scalperDto = scalperService.fireSignal(new PriceRequest(new BigDecimal(lastBid), new BigDecimal(lastAsk), symbolId, symbolName, lastTickTime));
             logger.info("fireSignal latency {} ms scalper operation: {} ", System.currentTimeMillis() - startFireSignal, scalperDto.getOperation());
             String positionMessage = "DEMO_MAC_PREDATOR_SCALPER_V1-" + lastTickTime;
-            switch (scalperDto.getOperation()) {
-                case "LONG":
-                    sendMarketOrder(symbolId, true, 100, "LONG_" + positionMessage, scalperDto.getTp().doubleValue(), scalperDto.getSl().doubleValue());
-                    scalperService.disable();
-                    break;
-                case "SHORT":
-                    sendMarketOrder(symbolId, false, 100, "SHORT_" + positionMessage, scalperDto.getTp().doubleValue(), scalperDto.getSl().doubleValue());
-                    scalperService.disable();
-                    break;
-                default:
-                    logger.debug("java scalper signal: {}", scalperDto.getOperation());
+
+            if (!"SKIP".equals(scalperDto.getOperation())) {
+                try {
+                    sendOrder(lastBid, lastAsk, symbolId, scalperDto, positionMessage);
+                } catch (Exception e) {
+                    scalperService.releasePositionSlot();
+                    throw e;
+                }
+            } else {
+                scalperService.releasePositionSlot();
             }
+        } else {
+            logger.debug("Scalper slot is busy");
+        }
+    }
+
+    private void sendOrder(long lastBid, long lastAsk, long symbolId, ScalperDto scalperDto, String positionMessage) {
+        switch (scalperDto.getOperation()) {
+            case "LONG":
+                sendScalperMarketOrder(symbolId, true, 100, "LONG_" + positionMessage, scalperDto, lastBid, lastAsk);
+                break;
+            case "SHORT":
+                sendScalperMarketOrder(symbolId, false, 100, "SHORT_" + positionMessage, scalperDto, lastBid, lastAsk);
+                break;
+            default:
+                logger.debug("java scalper signal: {}", scalperDto.getOperation());
         }
     }
 
@@ -791,9 +899,6 @@ public class CTraderWebSocketClient {
         return symbolByName.get(name);
     }
 
-
-
-
     public void close(long positionId) {
             logger.info("close positionId:{} ", positionId);
              positionIdStore.add(positionId);
@@ -807,7 +912,8 @@ public class CTraderWebSocketClient {
             send(req, ProtoOAPayloadType.PROTO_OA_CLOSE_POSITION_REQ_VALUE);
         }
 
-    public void reconcile() {
+    public void closeNotProtected() {
+        logger.info("closeNotProtected - send reconcile request");
 
         ProtoOAReconcileReq req = ProtoOAReconcileReq.newBuilder()
                 .setCtidTraderAccountId(accountId)
@@ -815,5 +921,18 @@ public class CTraderWebSocketClient {
 
         send(req, ProtoOAPayloadType.PROTO_OA_RECONCILE_REQ_VALUE);
     }
+
+    public void reconcile(long positionId) {
+        logger.info("reconcile: " + positionId);
+
+        Optional<Long> exist = reconcilePositionIdList.stream()
+                .filter(id -> id.equals(positionId))
+                .findAny();
+
+        if (!exist.isPresent()) {
+            logger.warn("Position ID {} not found in reconcile list", positionId);
+            n8nService.sendNotFoundOrderToN8n(positionId);
+        }
     }
+}
 

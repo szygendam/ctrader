@@ -18,4 +18,5 @@ logging:
     org.springframework.http.converter: WARN
     org.springframework.web.*: INFO
     org.springframework: INFO
+    com.punanito.predator: DEBUG
 

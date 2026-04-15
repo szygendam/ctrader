@@ -26,7 +26,7 @@ public class OrderController {
     @PostMapping("/new")
     public ResponseEntity<Void> newOrder(@RequestBody OrderRequest orderRequest) {
         logger.info("Received new order request: isBuy {} message {} ", orderRequest.getOperation(), orderRequest.getMessage());
-        webSocketClient.sendOrder(orderRequest.getOperation(),orderRequest.getMessage(),orderRequest.getTp(),orderRequest.getSl(), orderRequest.getSymbol());
+        webSocketClient.sendOrder(orderRequest.getOperation(),orderRequest.getMessage(),orderRequest.getSymbol());
         return ResponseEntity.ok().build();
     }
 
@@ -44,7 +44,13 @@ public class OrderController {
 
     @PostMapping("/closeNotProtected")
     public ResponseEntity<Void> closeNotProtected() {
-        webSocketClient.reconcile();
+        webSocketClient.closeNotProtected();
+        return ResponseEntity.ok().build();
+    }
+
+    @PostMapping("/reconcile")
+    public ResponseEntity<Void> reconcile(@RequestBody OrderRequest orderRequest) {
+        webSocketClient.reconcile(orderRequest.getPositionId());
         return ResponseEntity.ok().build();
     }
 }

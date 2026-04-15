@@ -8,6 +8,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import static com.punanito.predator.model.CandleColor.GREEN;
@@ -18,9 +19,34 @@ public class ScalperService {
 
     private static final Logger logger = LoggerFactory.getLogger(ScalperService.class);
 
+    private static final BigDecimal PRICE_SCALE_DIVIDER = new BigDecimal("100000");
+
+    private static final BigDecimal SL_SPREAD_MULTIPLIER = new BigDecimal("9");
+    private static final BigDecimal TP_SPREAD_MULTIPLIER = new BigDecimal("3");
+    private static final BigDecimal ENTRY_PROGRESS_RATIO = new BigDecimal("0.90");
+
+    private static final BigDecimal MIN_SL_DISTANCE = new BigDecimal("1.8");
+    private static final BigDecimal MIN_SL_SHORT_DISTANCE = new BigDecimal("1.8");
+    private static final BigDecimal MIN_TP_DISTANCE = new BigDecimal("0.4");
+    private static final BigDecimal MIN_TP_SHORT_DISTANCE = new BigDecimal("0.3");
+
+    private static final BigDecimal MIN_BODY_ABS = new BigDecimal("0.3");
+    private static final BigDecimal STRONG_BODY_ABS = new BigDecimal("2.0");
+    private static final BigDecimal MAX_SPREAD = new BigDecimal("0.6");
+
     private final MinuteCandleAggregator minuteCandleAggregator;
 
-    private AtomicBoolean javaScalperEnabled = new AtomicBoolean(false);
+    /**
+     * Czy strategia jest globalnie włączona.
+     */
+    private final AtomicBoolean scalperFeatureEnabled = new AtomicBoolean(false);
+
+    /**
+     * Czy aktualnie mamy już otwartą pozycję / zajęty slot.
+     * false = można otworzyć pozycję
+     * true  = pozycja już jest otwarta albo slot został zajęty
+     */
+    private final AtomicBoolean positionOpen = new AtomicBoolean(false);
 
     public ScalperService(MinuteCandleAggregator minuteCandleAggregator) {
         this.minuteCandleAggregator = minuteCandleAggregator;
@@ -29,74 +55,170 @@ public class ScalperService {
     public ScalperDto fireSignal(PriceRequest priceRequest) {
         CurrentCandleData currentCandleData = minuteCandleAggregator.onTick(priceRequest);
         if (currentCandleData != null) {
-            logger.info(currentCandleData.toString());
+            logger.info(currentCandleData + " priceRequest: " + priceRequest);
         }
 
-        if (currentCandleData != null &&
-                (currentCandleData.getBodyAbs().compareTo(new BigDecimal("0.3"))  >  0)
-                && priceRequest.getSpread() < 0.5) {
+
+        if (currentCandleData != null
+                && priceRequest.getSpread().compareTo(MAX_SPREAD) < 0
+                && currentCandleData.getBodyAbs().compareTo(MIN_BODY_ABS) > 0) {
+
+//            if(currentCandleData.getBodyAbs().compareTo(STRONG_BODY_ABS) > 0){
+//                if(isStrongCandleAndPriceInProgressZone(
+//                        currentCandleData,
+//                        priceRequest.getLastBid(),
+//                        priceRequest.getLastAsk(),
+//                        ENTRY_PROGRESS_RATIO)){
+//                }
+//                return new ScalperDto("SKIP");
+//            }
+
+            BigDecimal marketBid = priceRequest.getLastBid()
+                    .divide(PRICE_SCALE_DIVIDER, 5, RoundingMode.HALF_UP);
+
+            BigDecimal marketAsk = priceRequest.getLastAsk()
+                    .divide(PRICE_SCALE_DIVIDER, 5, RoundingMode.HALF_UP);
+
+            BigDecimal spread = priceRequest.getSpread();
+
+            BigDecimal slDistance = spread.multiply(SL_SPREAD_MULTIPLIER).max(MIN_SL_DISTANCE);
+            BigDecimal slShortDistance = spread.multiply(SL_SPREAD_MULTIPLIER).max(MIN_SL_SHORT_DISTANCE);
+            BigDecimal tpDistance = spread.multiply(TP_SPREAD_MULTIPLIER).max(MIN_TP_DISTANCE);
+            BigDecimal tpShortDistance = spread.multiply(TP_SPREAD_MULTIPLIER).max(MIN_TP_SHORT_DISTANCE);
 
             if (GREEN.equals(currentCandleData.getColor())) {
                 ScalperDto scalperDto = new ScalperDto("LONG");
-                scalperDto.setSl(new BigDecimal(priceRequest.getLastAsk() - 1.6));
-                scalperDto.setTp(new BigDecimal(priceRequest.getLastAsk() + 0.6));
+
+                BigDecimal sl = marketAsk
+                        .subtract(slDistance)
+                        .setScale(2, RoundingMode.HALF_UP);
+
+                BigDecimal tp = marketAsk
+                        .add(tpDistance)
+                        .setScale(2, RoundingMode.HALF_UP);
+
+                scalperDto.setSl(sl);
+                scalperDto.setTp(tp);
                 return scalperDto;
+
             } else if (RED.equals(currentCandleData.getColor())) {
-                ScalperDto scalperDto = new ScalperDto("SHORT");
-                scalperDto.setSl(new BigDecimal(priceRequest.getLastBid() + 1.6));
-                scalperDto.setTp(new BigDecimal(priceRequest.getLastBid() - 0.6));
-                return scalperDto;
+
+                if(currentCandleData.getBodyAbs().compareTo(STRONG_BODY_ABS) > 0){
+                    ScalperDto scalperDto = new ScalperDto("SHORT");
+
+                    BigDecimal sl = marketBid
+                            .add(slShortDistance)
+                            .setScale(2, RoundingMode.HALF_UP);
+
+                    BigDecimal tp = marketBid
+                            .subtract(tpShortDistance)
+                            .setScale(2, RoundingMode.HALF_UP);
+
+                    scalperDto.setSl(sl);
+                    scalperDto.setTp(tp);
+                    return scalperDto;
+                }
+
+                return new ScalperDto("SKIP");
             }
         }
-         return new ScalperDto("SKIP");
+
+        return new ScalperDto("SKIP");
     }
 
-    public boolean isEnabled(){
-        return javaScalperEnabled.get() && !minuteCandleAggregator.isJavaScalperSleeping();
+    private boolean isStrongCandleAndPriceInProgressZone(CurrentCandleData candle,
+                                                         BigDecimal marketBid,
+                                                         BigDecimal marketAsk,
+                                                         BigDecimal progressRatio) {
+        if (candle.getBodyAbs().compareTo(STRONG_BODY_ABS) <= 0) {
+            return false;
+        }
+
+        if (GREEN.equals(candle.getColor())) {
+            BigDecimal open = candle.getPriceOpen();
+            BigDecimal high = candle.getHigh();
+            BigDecimal currentPrice = marketAsk;
+
+            BigDecimal range = high.subtract(open);
+            if (range.compareTo(BigDecimal.ZERO) <= 0) {
+                return false;
+            }
+
+            BigDecimal thresholdPrice = open.add(range.multiply(progressRatio));
+            return currentPrice.compareTo(thresholdPrice) >= 0;
+        }
+
+        if (RED.equals(candle.getColor())) {
+            BigDecimal open = candle.getPriceOpen();
+            BigDecimal low = candle.getLow();
+            BigDecimal currentPrice = marketBid;
+
+            BigDecimal range = open.subtract(low);
+            if (range.compareTo(BigDecimal.ZERO) <= 0) {
+                return false;
+            }
+
+            BigDecimal thresholdPrice = open.subtract(range.multiply(progressRatio));
+            return currentPrice.compareTo(thresholdPrice) <= 0;
+        }
+
+        return false;
+    }
+
+    /**
+     * Czy strategia może w ogóle pracować.
+     */
+    public boolean isEnabled() {
+        return scalperFeatureEnabled.get() && !minuteCandleAggregator.isJavaScalperSleeping();
+    }
+
+    /**
+     * Atomowa próba zajęcia slotu na nową pozycję.
+     *
+     * Zwraca true tylko jednemu wątkowi:
+     * - jeśli strategia jest włączona
+     * - jeśli nie ma sleep
+     * - jeśli nie ma już otwartej pozycji
+     */
+    public boolean tryAcquirePositionSlot() {
+        if (!scalperFeatureEnabled.get()) {
+            return false;
+        }
+
+        if (minuteCandleAggregator.isJavaScalperSleeping()) {
+            return false;
+        }
+
+        return positionOpen.compareAndSet(false, true);
+    }
+
+    /**
+     * Zwolnienie slotu po zamknięciu pozycji albo błędzie otwarcia.
+     */
+    public void releasePositionSlot() {
+        positionOpen.set(false);
+    }
+
+    public void acquirePositionSlot() {
+        positionOpen.set(true);
+    }
+
+    /**
+     * Dodatkowy helper diagnostyczny.
+     */
+    public boolean isPositionOpen() {
+        return positionOpen.get();
     }
 
     public void enable() {
-        javaScalperEnabled.set(true);
+        scalperFeatureEnabled.set(true);
     }
 
     public void disable() {
-        javaScalperEnabled.set(false);
+        scalperFeatureEnabled.set(false);
     }
 
     public void sleep() {
         minuteCandleAggregator.setJavaScalperSleeping(true);
-    }
-
-    public static double calcProgressPercent(
-            String operation,
-            double priceOpen,
-            double high,
-            double low,
-            double lastBid
-    ) {
-        double percent;
-
-        switch (operation) {
-            case "LONG":
-                double longRange = high - priceOpen;
-                if (longRange <= 0.0) {
-                    return 0.0;
-                }
-                percent = ((lastBid - priceOpen) / longRange) * 100.0;
-                break;
-
-            case "SHORT":
-                double shortRange = priceOpen - low;
-                if (shortRange <= 0.0) {
-                    return 0.0;
-                }
-                percent = ((priceOpen - lastBid) / shortRange) * 100.0;
-                break;
-
-            default:
-                throw new IllegalArgumentException("Unsupported side: " + operation);
-        }
-
-        return Math.max(0.0, Math.min(100.0, percent));
     }
 }

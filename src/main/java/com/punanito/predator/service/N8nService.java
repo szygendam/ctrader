@@ -17,6 +17,9 @@ import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
+import java.math.BigDecimal;
+import java.util.List;
+
 @Service
 public class N8nService {
     private static final Logger logger = LoggerFactory.getLogger(N8nService.class);
@@ -57,13 +60,17 @@ public class N8nService {
 
     }
 
-    @Async("n8nAsyncExecutor")
-    public void sendTicksToN8n(double lastBid, double lastAsk, String symbolName,long symbolId) {
+    @Async("n8nTickExecutor")
+    public void sendTicksToN8n(long lastBid, long lastAsk, String symbolName,Integer symbolId) {
 
 //       logger.info("Sending ticks to n8n n8nWebhookTicksUrl: " + n8nWebhookTicksUrl);
+        if(symbolId == null) {
+            logger.warn("symbolId is null ");
+            return;
+        }
 
         String url = n8nWebhookTicksUrl;
-        PriceRequest request = new PriceRequest(lastBid, lastAsk,symbolId, symbolName);
+        PriceRequest request = new PriceRequest(new BigDecimal(lastBid), new BigDecimal(lastAsk),symbolId, symbolName);
 
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
@@ -97,16 +104,18 @@ public class N8nService {
     }
 
 
+    @Async("n8nOrderExecutor")
     public void sendNotFoundOrderToN8n(long positionId) {
         logger.info("sendNotFoundOrderToN8n " + positionId);
-        sendOrderToN8n(0,positionId, StringUtils.EMPTY,StringUtils.EMPTY,StringUtils.EMPTY,StringUtils.EMPTY,0,0,0,0,true);
+        sendOrderToN8n(0,positionId, StringUtils.EMPTY,StringUtils.EMPTY,StringUtils.EMPTY,StringUtils.EMPTY,0,0,0,0,true, 0,0);
     }
 
+    @Async("n8nOrderExecutor")
     public void sendOrderToN8n(long orderId, long positionId, String clientId, String executionType, String positionStatus,
-                                String orderStatus, double priceOpen, double sl, double tp, double execPrice, boolean positionNotFound) {
+                                String orderStatus, double priceOpen, double sl, double tp, double execPrice, boolean positionNotFound, double grossProfit, long accountBalance) {
         logger.info("sendOrderToN8n " + orderStatus);
         String url = n8nWebhookOrderUrl;
-        PositionRequest request = new PositionRequest(positionId, clientId,orderId,positionStatus,orderStatus,executionType,clientId,priceOpen,tp,sl, execPrice, positionNotFound);
+        PositionRequest request = new PositionRequest(positionId, clientId,orderId,positionStatus,orderStatus,executionType,clientId,priceOpen,tp,sl, execPrice, positionNotFound, grossProfit, accountBalance);
         logger.info("PositionRequest: {}", request);
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
@@ -121,4 +130,5 @@ public class N8nService {
             logger.warn(response.getBody());
         }
     }
+
 }
