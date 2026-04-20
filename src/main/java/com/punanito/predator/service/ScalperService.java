@@ -88,7 +88,7 @@ public class ScalperService {
 
         if (GREEN.equals(currentCandleData.getColor())
                 && currentCandleData.getBodySigned().compareTo(MIN_BODY_ABS) > 0
-                && currentCandleData.getPositionInRange().compareTo(LONG_POSITION_IN_RANGE) >= 0
+                && currentCandleData.getPositionInRange().compareTo( LONG_POSITION_IN_RANGE) >= 0
                 && currentCandleData.isNewHighBreak()) {
 
             ScalperDto scalperDto = new ScalperDto("LONG");

@@ -7,8 +7,8 @@ public class OrderRequest {
     private String orderId;
     private long positionId;
     private long id;
-    private double sl;
-    private double tp;
+    private long sl;
+    private long tp;
     private String status;
     private String symbol;
     private long ctidTraderAccountId;
@@ -34,7 +34,7 @@ public class OrderRequest {
         return operation;
     }
 
-    public double getSl() {
+    public long getSl() {
         return sl;
     }
     public long getId() {
@@ -52,13 +52,13 @@ public class OrderRequest {
     public void setId(long id) {
         this.id = id;
     }
-    public void setSl(double sl) {
+    public void setSl(long sl) {
         this.sl = sl;
     }
-    public void setTp(double tp) {
+    public void setTp(long tp) {
         this.tp = tp;
     }
-    public double getTp() {
+    public long getTp() {
         return tp;
     }
 

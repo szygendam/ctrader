@@ -314,10 +314,6 @@ public class CTraderWebSocketClient {
         }
     }
 
-    public void sendOrder(String operation, String message, String symbolName) {
-        sendOrder(operation, message, 0, 0, symbolName);
-    }
-
     public void sendGoldOrder(String operation, String message, long tp, long sl) {
         logger.info("sendGoldOrder");
         boolean isBuy = operation.equals("LONG");
