@@ -116,7 +116,7 @@ public class N8nService {
         logger.info("sendOrderToN8n " + orderStatus);
         String url = n8nWebhookOrderUrl;
         PositionRequest request = new PositionRequest(positionId, clientId,orderId,positionStatus,orderStatus,executionType,clientId,priceOpen,tp,sl, execPrice, positionNotFound, grossProfit, accountBalance);
-        logger.info("PositionRequest: {}", request);
+        logger.info("sendOrderToN8n PositionRequest: {}", request);
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
 
@@ -131,4 +131,30 @@ public class N8nService {
         }
     }
 
+    private void sendReconcileToN8n(long positionId) {
+        logger.info("sendReconcileToN8n positionId " + positionId);
+        String url = n8nWebhookOrderUrl;
+        PositionRequest request = new PositionRequest(positionId);
+        request.setPosistionStatus("RECONCILE_OPEN");
+        logger.info("sendReconcileToN8n PositionRequest: {}", request);
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+
+        HttpEntity<PositionRequest> entity = new HttpEntity<>(request, headers);
+
+        ResponseEntity<String> response = restTemplate.postForEntity(url, entity, String.class);
+
+        if (response.getBody().contains("Workflow was started")) {
+            // skip to save memory
+        } else {
+            logger.warn(response.getBody());
+        }
+    }
+
+    @Async("n8nOrderExecutor")
+    public void sendReconcileToN8n(List<Long> reconcilePositionIdList) {
+        for (Long positionId : reconcilePositionIdList) {
+            sendReconcileToN8n(positionId);
+        }
+    }
 }

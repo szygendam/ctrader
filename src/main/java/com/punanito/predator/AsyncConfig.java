@@ -15,7 +15,7 @@ public class AsyncConfig {
         ThreadPoolTaskExecutor exec = new ThreadPoolTaskExecutor();
         exec.setCorePoolSize(4);
         exec.setMaxPoolSize(16);
-        exec.setQueueCapacity(10);
+        exec.setQueueCapacity(32);
         exec.setThreadNamePrefix("n8n-tick-worker-");
         exec.setWaitForTasksToCompleteOnShutdown(true);
         exec.setAwaitTerminationSeconds(30);
@@ -26,9 +26,9 @@ public class AsyncConfig {
     @Bean(name = "n8nOrderExecutor")
     public Executor n8nOrderExecutor() {
         ThreadPoolTaskExecutor exec = new ThreadPoolTaskExecutor();
-        exec.setCorePoolSize(4);
-        exec.setMaxPoolSize(10);
-        exec.setQueueCapacity(10);
+        exec.setCorePoolSize(10);
+        exec.setMaxPoolSize(20);
+        exec.setQueueCapacity(40);
         exec.setThreadNamePrefix("n8n-order-worker-");
         exec.setWaitForTasksToCompleteOnShutdown(true);
         exec.setAwaitTerminationSeconds(30);

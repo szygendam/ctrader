@@ -35,6 +35,8 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
 
+import static com.xtrader.protocol.openapi.v2.model.ProtoOAPositionStatus.POSITION_STATUS_OPEN;
+
 @Component
 public class CTraderWebSocketClient {
 
@@ -63,6 +65,7 @@ public class CTraderWebSocketClient {
     private ScheduledExecutorService unprotectedPositionWatcher;
     private AtomicLong lastPosition = new AtomicLong(0);
     private List<Long> reconcilePositionIdList = new ArrayList<>();
+    private List<Long> reconcileOpenPositionIdList = new ArrayList<>();
 
 
     private final N8nService n8nService;
@@ -348,6 +351,9 @@ public class CTraderWebSocketClient {
         logger.info("sendMarketOrder clientOrderId: {} volume: {} sl: {} tp: {} ", clientOrderId, volume,sl,tp);
         if(tp != 0) {
             logger.info("sendMarketOrder with preset tp: {} sl: {} ", tp, sl);
+            long relativeTp = tp * 100000L;
+            long relativeSl = sl * 100000L;
+            logger.info("sendMarketOrder with preset relativeTp: {} relativeSl: {} ", relativeTp, relativeSl);
             ProtoOANewOrderReq req = ProtoOANewOrderReq.newBuilder()
                     .setCtidTraderAccountId(accountId)
                     .setSymbolId(symbolId)
@@ -357,8 +363,8 @@ public class CTraderWebSocketClient {
                             : ProtoOATradeSide.SELL)
                     .setVolume(volume)
                     .setClientOrderId(clientOrderId)
-                .setRelativeTakeProfit(tp)
-                .setRelativeStopLoss(sl)
+                .setRelativeTakeProfit(relativeTp)
+                .setRelativeStopLoss(relativeSl)
                     .build();
             send(req, ProtoOAPayloadType.PROTO_OA_NEW_ORDER_REQ_VALUE);
         } else {
@@ -548,12 +554,16 @@ public class CTraderWebSocketClient {
                     if(!protoOAPosition.hasStopLoss()) {
                         close(protoOAPosition.getPositionId());
                     }
+
+                    if(protoOAPosition.hasStopLoss() && POSITION_STATUS_OPEN.equals(protoOAPosition.getPositionStatus())) {
+                        reconcilePositionIdList.add(protoOAPosition.getPositionId());
+                    }
                 }
+                n8nService.sendReconcileToN8n(reconcilePositionIdList);
 
                 reconcilePositionIdList = res.getPositionList().stream()
                         .map(ProtoOAPosition::getPositionId)
                         .collect(Collectors.toList());
-
             }
             break;
 

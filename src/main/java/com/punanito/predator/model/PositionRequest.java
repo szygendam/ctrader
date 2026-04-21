@@ -1,5 +1,6 @@
 package com.punanito.predator.model;
 
+
 public class PositionRequest {
     private long positionId;
     private long accountBalance;
@@ -139,5 +140,22 @@ public class PositionRequest {
 
     public void setGrossProfit(double grossProfit) {
         this.grossProfit = grossProfit;
+    }
+
+    @Override
+    public String toString(){
+        StringBuilder sb = new StringBuilder();
+        sb.append("positionId ").append(positionId);
+        sb.append(" orderId ").append(orderId);
+        sb.append(" positionStatus ").append(positionStatus);
+        sb.append(" orderStatus ").append(orderStatus);
+        sb.append(" executionType ").append(executionType);
+        sb.append(" clientId ").append(clientId);
+        sb.append(" priceOpen ").append(priceOpen);
+        sb.append(" priceClose ").append(priceClose);
+        sb.append(" sl ").append(sl);
+        sb.append(" tp ").append(tp);
+        sb.append(" positionNotFound ").append(positionNotFound);
+        return sb.toString();
     }
 }
