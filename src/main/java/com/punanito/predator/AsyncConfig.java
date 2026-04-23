@@ -36,4 +36,30 @@ public class AsyncConfig {
         return exec;
     }
 
+    @Bean(name = "n8nOrderNotFoundExecutor")
+    public Executor n8nOrderNotFoundExecutor() {
+        ThreadPoolTaskExecutor exec = new ThreadPoolTaskExecutor();
+        exec.setCorePoolSize(10);
+        exec.setMaxPoolSize(20);
+        exec.setQueueCapacity(40);
+        exec.setThreadNamePrefix("n8n-orderNotFound-worker-");
+        exec.setWaitForTasksToCompleteOnShutdown(true);
+        exec.setAwaitTerminationSeconds(30);
+        exec.initialize();
+        return exec;
+    }
+
+    @Bean(name = "n8nReconcileExecutor")
+    public Executor n8nReconcileExecutor() {
+        ThreadPoolTaskExecutor exec = new ThreadPoolTaskExecutor();
+        exec.setCorePoolSize(10);
+        exec.setMaxPoolSize(20);
+        exec.setQueueCapacity(40);
+        exec.setThreadNamePrefix("n8n-reconcile-worker-");
+        exec.setWaitForTasksToCompleteOnShutdown(true);
+        exec.setAwaitTerminationSeconds(30);
+        exec.initialize();
+        return exec;
+    }
+
 }

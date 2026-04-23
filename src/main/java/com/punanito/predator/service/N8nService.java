@@ -39,6 +39,12 @@ public class N8nService {
     @Value("${n8n.webhook.order.url}")
     private String n8nWebhookOrderUrl;
 
+    @Value("${n8n.webhook.orderNotFound.url}")
+    private String n8nWebhookOrderNotFoundUrl;
+
+    @Value("${n8n.webhook.reconcile.url}")
+    private String n8nReconcileWebhookUrl;
+
     public N8nService(@Qualifier("n8nRestTemplate") RestTemplate restTemplate) {
         this.restTemplate = restTemplate;
     }
@@ -104,17 +110,24 @@ public class N8nService {
     }
 
 
-    @Async("n8nOrderExecutor")
+    @Async("n8nOrderNotFoundExecutor")
     public void sendNotFoundOrderToN8n(long positionId) {
         logger.info("sendNotFoundOrderToN8n " + positionId);
-        sendOrderToN8n(0,positionId, StringUtils.EMPTY,StringUtils.EMPTY,StringUtils.EMPTY,StringUtils.EMPTY,0,0,0,0,true, 0,0);
+        if(positionId != 0) {
+            sendOrderToN8n(n8nWebhookOrderNotFoundUrl,0,positionId, StringUtils.EMPTY,StringUtils.EMPTY,StringUtils.EMPTY,StringUtils.EMPTY,0,0,0,0,true, 0,0);
+        } else {
+            logger.warn(" positionId is 0, skipping sendNotFoundOrderToN8n ");
+        }
     }
-
     @Async("n8nOrderExecutor")
     public void sendOrderToN8n(long orderId, long positionId, String clientId, String executionType, String positionStatus,
+                               String orderStatus, double priceOpen, double sl, double tp, double execPrice, boolean positionNotFound, double grossProfit, long accountBalance) {
+        sendOrderToN8n(n8nWebhookOrderUrl, orderId, positionId, clientId, executionType, positionStatus, orderStatus, priceOpen, sl, tp, execPrice, positionNotFound, grossProfit, accountBalance);
+    }
+
+    private void sendOrderToN8n(String urlInput, long orderId, long positionId, String clientId, String executionType, String positionStatus,
                                 String orderStatus, double priceOpen, double sl, double tp, double execPrice, boolean positionNotFound, double grossProfit, long accountBalance) {
         logger.info("sendOrderToN8n " + orderStatus);
-        String url = n8nWebhookOrderUrl;
         PositionRequest request = new PositionRequest(positionId, clientId,orderId,positionStatus,orderStatus,executionType,clientId,priceOpen,tp,sl, execPrice, positionNotFound, grossProfit, accountBalance);
         logger.info("sendOrderToN8n PositionRequest: {}", request);
         HttpHeaders headers = new HttpHeaders();
@@ -122,7 +135,7 @@ public class N8nService {
 
         HttpEntity<PositionRequest> entity = new HttpEntity<>(request, headers);
 
-        ResponseEntity<String> response = restTemplate.postForEntity(url, entity, String.class);
+        ResponseEntity<String> response = restTemplate.postForEntity(urlInput, entity, String.class);
 
         if (response.getBody().contains("Workflow was started")) {
             // skip to save memory
@@ -133,7 +146,7 @@ public class N8nService {
 
     private void sendReconcileToN8n(long positionId) {
         logger.info("sendReconcileToN8n positionId " + positionId);
-        String url = n8nWebhookOrderUrl;
+        String url = n8nReconcileWebhookUrl;
         PositionRequest request = new PositionRequest(positionId);
         request.setPosistionStatus("RECONCILE_OPEN");
         logger.info("sendReconcileToN8n PositionRequest: {}", request);
@@ -151,7 +164,7 @@ public class N8nService {
         }
     }
 
-    @Async("n8nOrderExecutor")
+    @Async("n8nReconcileExecutor")
     public void sendReconcileToN8n(List<Long> reconcilePositionIdList) {
         for (Long positionId : reconcilePositionIdList) {
             sendReconcileToN8n(positionId);

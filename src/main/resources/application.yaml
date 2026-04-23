@@ -11,6 +11,10 @@ n8n:
         url: "http://n8n:5678/webhook/f84eb900-ec11-4043-b063-2e0f46d0f119"
     order:
         url: "http://n8n:5678/webhook/92a0363e-d630-4bd4-b311-5614fb55bf72"
+    orderNotFound:
+      url: "http://n8n:5678/webhook/c3f18360-2ae4-4f79-9bf8-27239dd581e2"
+    reconcile:
+      url: "http://n8n:5678/webhook/3d1b9058-6cb2-4937-a71b-0789f8b4191c"
 
 logging:
   level:
