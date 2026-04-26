@@ -312,6 +312,9 @@ public class CTraderWebSocketClient {
             case "US500":
                 sendUs500Order(operation, message, tp, sl);
                 break;
+            case "XTIUSD":
+                sendOilOrder(operation, message, tp, sl);
+                break;
             default:
                 logger.error("unhandled symbol new Order" + symbolName);
         }
@@ -343,6 +346,18 @@ public class CTraderWebSocketClient {
 
             long volume = 100;
             sendMarketOrder(goldId, isBuy, volume, message, tp, sl);
+        }
+    }
+
+    public void sendOilOrder(String operation, String message, long tp, long sl) {
+        logger.info("sendOilNewOrder");
+        boolean isBuy = operation.equals("LONG");
+        if (accountBalanceHalf > 0) {
+
+            long oilId = findSymbolByName("XTIUSD");
+
+            long volume = 100;
+            sendMarketOrder(oilId, isBuy, volume, message, tp, sl);
         }
     }
 
@@ -617,18 +632,22 @@ public class CTraderWebSocketClient {
                     if(symbol.getSymbolName().contains("500")) {
                         logger.info("500 symbolName: {} symbolId: {} ", symbol.getSymbolName(), symbolByName.get(symbol.getSymbolName()));
                     }
+
+                    if(symbol.getSymbolName().contains("OIL")
+                            || symbol.getSymbolName().contains("oil")
+                            || symbol.getSymbolName().contains("XTIUSD")
+                            || symbol.getSymbolName().contains("XBRUSD")) {
+
+                        logger.info("OIL symbolName: {} symbolId: {} Description: {} baseAssetId: {}", symbol.getSymbolName(),
+                                symbolByName.get(symbol.getSymbolName()), symbol.getDescription(), symbol.getBaseAssetId());
+                    }
                 }
                 logger.info("Załadowano " + symbolByName.size() + " symboli");
 
 
                 sendSymbolById(findSymbolByName("XAUUSD"));
-                if (findSymbolByName("US 500") != null){
-                    sendSymbolById(findSymbolByName("US 500"));
-                } else if (findSymbolByName("US_500") != null){
-                    sendSymbolById(findSymbolByName("US_500"));
-                } else if (findSymbolByName("US500") != null){
-                    sendSymbolById(findSymbolByName("US500"));
-                }
+                sendSymbolById(findSymbolByName("US500"));
+                sendSymbolById(findSymbolByName("XTIUSD"));
 
             }
             break;
@@ -651,10 +670,15 @@ public class CTraderWebSocketClient {
                 ProtoOASymbolByIdRes event = ProtoOASymbolByIdRes.parseFrom(message.getPayload());
 
                 int us500 = 0;
+                int usOil = 0;
                 int gold = 0;
                 if(findSymbolByName("US500") != null) {
                     us500 = findSymbolByName("US500");
                     logger.info("US500 symbolId: {} ", us500);
+                }
+                if(findSymbolByName("XTIUSD") != null) {
+                    usOil = findSymbolByName("XTIUSD");
+                    logger.info("XTIUSD symbolId: {} ", usOil);
                 }
                 if(findSymbolByName("XAUUSD") != null) {
                     gold = findSymbolByName("XAUUSD");
@@ -669,7 +693,9 @@ public class CTraderWebSocketClient {
                     if (symbolId == gold) {
                         subscribeGold();
                     } else if (symbolId == us500){
-//                        subscribeUS500();
+                        subscribeUS500();
+                    } else if (symbolId == usOil){
+                        subscribeUSOil();
                     }
                 }
             }
@@ -849,6 +875,12 @@ public class CTraderWebSocketClient {
     private void subscribeUS500() {
         if (!symbolByName.isEmpty() && symbolByName.get("US500") != null){
             subscribeToTicks(symbolByName.get("US500"),"US500");
+        }
+    }
+
+    private void subscribeUSOil() {
+        if (!symbolByName.isEmpty() && symbolByName.get("XTIUSD") != null){
+            subscribeToTicks(symbolByName.get("XTIUSD"),"XTIUSD");
         }
     }
 
