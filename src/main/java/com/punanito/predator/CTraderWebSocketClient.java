@@ -729,6 +729,8 @@ public class CTraderWebSocketClient {
                     n8nService.sendTicksToN8n(lastBid, lastAsk, symbolName, symbolByName.get(symbolName));
                     if ("XAUUSD".equals(symbolName)  && lastBid > 0 && lastAsk > 0 ){
                         handleJavaScalper(lastBid,lastAsk, symbolName, event.getSymbolId(), lastTickTime);
+                        handleJavaScalperV2(lastBid,lastAsk, symbolName, event.getSymbolId(), lastTickTime);
+                        handleJavaScalperV3(lastBid,lastAsk, symbolName, event.getSymbolId(), lastTickTime);
                     }
                 }
             }
@@ -743,12 +745,28 @@ public class CTraderWebSocketClient {
                     break;
                 }
                 try {
+                    double execPrice = 0.0;
+                    double grossProfit = 0;
+                    long accountBalance = 0;
+
                     if (event.getExecutionType() == ProtoOAExecutionType.ORDER_REPLACED) {
                         logger.debug("Received PROTO_OA_EXECUTION_EVENT_VALUE ORDER REPLACED");
+
+                        n8nService.sendOrderReplaceToN8n(event.getOrder().getOrderId(),
+                                event.getPosition().getPositionId(),
+                                event.getOrder().getClientOrderId(),
+                                event.getExecutionType().name(),
+                                event.getPosition().getPositionStatus().name(),
+                                event.getOrder().getOrderStatus().name(),
+                                event.getPosition().getPrice(),
+                                event.getPosition().getStopLoss(),
+                                event.getPosition().getTakeProfit(),
+                                execPrice, false, grossProfit, accountBalance
+                        );
+
                         return;
                     }
                     logger.info("EXECUTION: " + event.getExecutionType());
-                    double execPrice = 0.0;
                     if (event.hasOrder()) {
                         logger.info("ORDER ID: " + event.getOrder().getOrderId());
                         if (event.hasPosition()) {
@@ -763,9 +781,6 @@ public class CTraderWebSocketClient {
                             logger.info("ORDER STATUS: " + event.getOrder().getOrderStatus());
                         }
                     }
-
-                    double grossProfit = 0;
-                    long accountBalance = 0;
 
                     if (event.hasPosition()) {
                         if (event.hasDeal()) {
@@ -832,24 +847,129 @@ public class CTraderWebSocketClient {
 
     private void handleJavaScalper(long lastBid, long lastAsk, String symbolName, long symbolId, long lastTickTime) {
         long startFireSignal = System.currentTimeMillis();
-        if (scalperService.tryAcquirePositionSlot()) {
+        boolean positionActuallyOpened = false;
 
-            ScalperDto scalperDto = scalperService.fireSignal(new PriceRequest(new BigDecimal(lastBid), new BigDecimal(lastAsk), symbolId, symbolName, lastTickTime));
-            logger.info("fireSignal latency {} ms scalper operation: {} ", System.currentTimeMillis() - startFireSignal, scalperDto.getOperation());
+        if (!scalperService.tryAcquirePositionSlot()) {
+            logger.debug("Scalper slot is busy");
+            return;
+        }
+
+        try {
+            PriceRequest priceRequest = new PriceRequest(new BigDecimal(lastBid), new BigDecimal(lastAsk), symbolId, symbolName, lastTickTime);
+            ScalperDto scalperDto = scalperService.fireSignal(priceRequest, "V1");
+            logger.info("fireSignal latency {} ms scalper operation: {} reason: {} ", System.currentTimeMillis() - startFireSignal, scalperDto.getOperation(), scalperDto.getReason());
             String positionMessage = "DEMO_MAC_PREDATOR_SCALPER_V1-" + lastTickTime;
 
-            if (!"SKIP".equals(scalperDto.getOperation())) {
-                try {
+            if ("SKIP".equals(scalperDto.getOperation())) {
+                return;
+            }
+
+            // send order
+            try {
                     sendOrder(lastBid, lastAsk, symbolId, scalperDto, positionMessage);
                 } catch (Exception e) {
                     scalperService.releasePositionSlot();
                     throw e;
                 }
-            } else {
+
+            positionActuallyOpened = true;
+
+        } finally {
+            if (!positionActuallyOpened) {
                 scalperService.releasePositionSlot();
             }
-        } else {
-            logger.debug("Scalper slot is busy");
+        }
+
+//        if (scalperService.tryAcquirePositionSlot()) {
+//
+//            ScalperDto scalperDto = scalperService.fireSignal(, "V1");
+//            logger.info("fireSignal latency {} ms scalper operation: {} ", System.currentTimeMillis() - startFireSignal, scalperDto.getOperation());
+//            String positionMessage = "DEMO_MAC_PREDATOR_SCALPER_V1-" + lastTickTime;
+//
+//            if (!"SKIP".equals(scalperDto.getOperation())) {
+//                try {
+//                    sendOrder(lastBid, lastAsk, symbolId, scalperDto, positionMessage);
+//                } catch (Exception e) {
+//                    scalperService.releasePositionSlot();
+//                    throw e;
+//                }
+//            } else {
+//                scalperService.releasePositionSlot();
+//            }
+//        } else {
+//            logger.debug("Scalper slot is busy");
+//        }
+    }
+
+    private void handleJavaScalperV2(long lastBid, long lastAsk, String symbolName, long symbolId, long lastTickTime) {
+        long startFireSignal = System.currentTimeMillis();
+        boolean positionActuallyOpened = false;
+
+        if (!scalperService.tryAcquirePositionSlotV2()) {
+            logger.debug("Scalper V2 slot is busy");
+            return;
+        }
+
+        try {
+            PriceRequest priceRequest = new PriceRequest(new BigDecimal(lastBid), new BigDecimal(lastAsk), symbolId, symbolName, lastTickTime);
+            ScalperDto scalperDto = scalperService.fireSignal(priceRequest, "V2");
+            logger.info("V2 fireSignal latency {} ms scalper operation: {} reason: {} ", System.currentTimeMillis() - startFireSignal, scalperDto.getOperation(), scalperDto.getReason());
+            String positionMessage = "DEMO_MAC_PREDATOR_SCALPER_V2-" + lastTickTime;
+
+            if ("SKIP".equals(scalperDto.getOperation())) {
+                return;
+            }
+
+            // send order
+            try {
+                sendOrder(lastBid, lastAsk, symbolId, scalperDto, positionMessage);
+            } catch (Exception e) {
+                scalperService.releasePositionSlotV2();
+                throw e;
+            }
+
+            positionActuallyOpened = true;
+
+        } finally {
+            if (!positionActuallyOpened) {
+                scalperService.releasePositionSlotV2();
+            }
+        }
+    }
+
+    private void handleJavaScalperV3(long lastBid, long lastAsk, String symbolName, long symbolId, long lastTickTime) {
+        long startFireSignal = System.currentTimeMillis();
+        boolean positionActuallyOpened = false;
+
+        if (!scalperService.tryAcquirePositionSlotV3()) {
+            logger.debug("Scalper V3 slot is busy");
+            return;
+        }
+
+        try {
+            PriceRequest priceRequest = new PriceRequest(new BigDecimal(lastBid), new BigDecimal(lastAsk), symbolId, symbolName, lastTickTime);
+            ScalperDto scalperDto = scalperService.fireSignal(priceRequest, "V3");
+            logger.info(" V3 fireSignal latency {} ms scalper operation: {} reason: {} ", System.currentTimeMillis() - startFireSignal, scalperDto.getOperation(), scalperDto.getReason());
+            String positionMessage = "DEMO_MAC_PREDATOR_SCALPER_V3-" + lastTickTime;
+
+            if ("SKIP".equals(scalperDto.getOperation())) {
+                return;
+            }
+
+            // send order
+            try {
+                sendOrder(lastBid, lastAsk, symbolId, scalperDto, positionMessage);
+            } catch (Exception e) {
+                scalperService.releasePositionSlotV3();
+                throw e;
+            }
+
+            positionActuallyOpened = true;
+
+        } finally {
+            if (!positionActuallyOpened) {
+                scalperService.releasePositionSlotV3();
+            }
         }
     }
 

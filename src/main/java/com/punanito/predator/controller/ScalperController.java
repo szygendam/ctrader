@@ -29,6 +29,22 @@ public class ScalperController {
         return ResponseEntity.ok().build();
     }
 
+    @PostMapping("/enableV2")
+    public ResponseEntity<Void> enableV2() {
+        logger.info("Received scalper V2 enable");
+        scalperService.enable();
+        scalperService.releasePositionSlotV2();
+        return ResponseEntity.ok().build();
+    }
+
+    @PostMapping("/enableV3")
+    public ResponseEntity<Void> enableV3() {
+        logger.info("Received scalper V3 enable");
+        scalperService.enable();
+        scalperService.releasePositionSlotV3();
+        return ResponseEntity.ok().build();
+    }
+
     @PostMapping("/disable")
     public ResponseEntity<Void> disable() {
         logger.info("Received scalper disable");

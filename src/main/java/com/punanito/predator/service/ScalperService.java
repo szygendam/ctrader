@@ -33,6 +33,7 @@ public class ScalperService {
     private static final BigDecimal TP_SPREAD_MULTIPLIER = new BigDecimal("1.5");
 
     private static final BigDecimal MIN_SL_DISTANCE = new BigDecimal("0.4");
+    private static final BigDecimal MIN_SL_DISTANCE_V3 = new BigDecimal("1.6");
     private static final BigDecimal MIN_SL_SHORT_DISTANCE = new BigDecimal("0.4");
     private static final BigDecimal MIN_TP_DISTANCE = new BigDecimal("1.0");
     private static final BigDecimal MIN_TP_SHORT_DISTANCE = new BigDecimal("1.0");
@@ -50,12 +51,14 @@ public class ScalperService {
      * true  = pozycja już jest otwarta albo slot został zajęty
      */
     private final AtomicBoolean positionOpen = new AtomicBoolean(false);
+    private final AtomicBoolean positionOpenV2 = new AtomicBoolean(false);
+    private final AtomicBoolean positionOpenV3 = new AtomicBoolean(false);
 
     public ScalperService(MinuteCandleAggregator minuteCandleAggregator) {
         this.minuteCandleAggregator = minuteCandleAggregator;
     }
 
-    public ScalperDto fireSignal(PriceRequest priceRequest) {
+    public ScalperDto fireSignal(PriceRequest priceRequest, String version) {
         CurrentCandleData currentCandleData = minuteCandleAggregator.onTick(priceRequest);
         if (currentCandleData != null) {
             logger.info(currentCandleData + " priceRequest: " + priceRequest);
@@ -66,25 +69,42 @@ public class ScalperService {
         }
 
         if (priceRequest.getSpread().compareTo(MAX_SPREAD) >= 0) {
-            return new ScalperDto("SKIP");
+            return new ScalperDto("SKIP", "Spread too high: " + priceRequest.getSpread());
         }
 
         if (currentCandleData.getSecondOfMinute() < MIN_SECOND_OF_MINUTE) {
-            return new ScalperDto("SKIP");
+            return new ScalperDto("SKIP", "Too early: " + currentCandleData.getSecondOfMinute());
         }
 
         if (currentCandleData.getBodyAbs().compareTo(MIN_BODY_ABS) <= 0) {
-            return new ScalperDto("SKIP");
+            return new ScalperDto("SKIP", "Body too small: " + currentCandleData.getBodyAbs());
         }
 
         BigDecimal marketBid = currentCandleData.getCurrentBid();
         BigDecimal marketAsk = currentCandleData.getCurrentAsk();
         BigDecimal spread = priceRequest.getSpread();
+        BigDecimal slDistance = null;
+        BigDecimal slShortDistance = null;
+        BigDecimal tpDistance = null;
+        BigDecimal tpShortDistance = null;
 
-        BigDecimal slDistance = spread.multiply(SL_SPREAD_MULTIPLIER).max(MIN_SL_DISTANCE);
-        BigDecimal slShortDistance = spread.multiply(SL_SPREAD_MULTIPLIER).max(MIN_SL_SHORT_DISTANCE);
-        BigDecimal tpDistance = spread.multiply(TP_SPREAD_MULTIPLIER).max(MIN_TP_DISTANCE);
-        BigDecimal tpShortDistance = spread.multiply(TP_SPREAD_MULTIPLIER).max(MIN_TP_SHORT_DISTANCE);
+        if(version.equals("V1")){
+             slDistance = spread.multiply(SL_SPREAD_MULTIPLIER).max(MIN_SL_DISTANCE);
+             slShortDistance = spread.multiply(SL_SPREAD_MULTIPLIER).max(MIN_SL_SHORT_DISTANCE);
+             tpDistance = spread.multiply(TP_SPREAD_MULTIPLIER).max(MIN_TP_DISTANCE);
+             tpShortDistance = spread.multiply(TP_SPREAD_MULTIPLIER).max(MIN_TP_SHORT_DISTANCE);
+        } else      if(version.equals("V2")){
+            slDistance = spread.multiply(TP_SPREAD_MULTIPLIER).max(MIN_TP_DISTANCE);
+            slShortDistance = spread.multiply(TP_SPREAD_MULTIPLIER).max(MIN_TP_SHORT_DISTANCE);
+            tpDistance = spread.multiply(SL_SPREAD_MULTIPLIER).max(MIN_SL_DISTANCE);
+            tpShortDistance = spread.multiply(SL_SPREAD_MULTIPLIER).max(MIN_SL_SHORT_DISTANCE);
+        } else      if(version.equals("V3")){
+            slDistance = spread.multiply(SL_SPREAD_MULTIPLIER).max(MIN_SL_DISTANCE_V3);
+            slShortDistance = spread.multiply(SL_SPREAD_MULTIPLIER).max(MIN_SL_DISTANCE_V3);
+            tpDistance = spread.multiply(TP_SPREAD_MULTIPLIER).max(MIN_TP_DISTANCE);
+            tpShortDistance = spread.multiply(TP_SPREAD_MULTIPLIER).max(MIN_TP_SHORT_DISTANCE);
+        }
+
 
         if (GREEN.equals(currentCandleData.getColor())
                 && currentCandleData.getBodySigned().compareTo(MIN_BODY_ABS) > 0
@@ -127,82 +147,9 @@ public class ScalperService {
             return scalperDto;
         }
 
-        return new ScalperDto("SKIP");
+        return new ScalperDto("SKIP", "No suitable conditions met");
     }
 
-//    public ScalperDto fireSignal(PriceRequest priceRequest) {
-//        CurrentCandleData currentCandleData = minuteCandleAggregator.onTick(priceRequest);
-//        if (currentCandleData != null) {
-//            logger.info(currentCandleData + " priceRequest: " + priceRequest);
-//        }
-//
-//
-//        if (currentCandleData != null
-//                && priceRequest.getSpread().compareTo(MAX_SPREAD) < 0
-//                && currentCandleData.getBodyAbs().compareTo(MIN_BODY_ABS) > 0) {
-//
-////            if(currentCandleData.getBodyAbs().compareTo(STRONG_BODY_ABS) > 0){
-////                if(isStrongCandleAndPriceInProgressZone(
-////                        currentCandleData,
-////                        priceRequest.getLastBid(),
-////                        priceRequest.getLastAsk(),
-////                        ENTRY_PROGRESS_RATIO)){
-////                }
-////                return new ScalperDto("SKIP");
-////            }
-//
-//            BigDecimal marketBid = priceRequest.getLastBid()
-//                    .divide(PRICE_SCALE_DIVIDER, 5, RoundingMode.HALF_UP);
-//
-//            BigDecimal marketAsk = priceRequest.getLastAsk()
-//                    .divide(PRICE_SCALE_DIVIDER, 5, RoundingMode.HALF_UP);
-//
-//            BigDecimal spread = priceRequest.getSpread();
-//
-//            BigDecimal slDistance = spread.multiply(SL_SPREAD_MULTIPLIER).max(MIN_SL_DISTANCE);
-//            BigDecimal slShortDistance = spread.multiply(SL_SPREAD_MULTIPLIER).max(MIN_SL_SHORT_DISTANCE);
-//            BigDecimal tpDistance = spread.multiply(TP_SPREAD_MULTIPLIER).max(MIN_TP_DISTANCE);
-//            BigDecimal tpShortDistance = spread.multiply(TP_SPREAD_MULTIPLIER).max(MIN_TP_SHORT_DISTANCE);
-//
-//            if (GREEN.equals(currentCandleData.getColor())) {
-//                ScalperDto scalperDto = new ScalperDto("LONG");
-//
-//                BigDecimal sl = marketAsk
-//                        .subtract(slDistance)
-//                        .setScale(2, RoundingMode.HALF_UP);
-//
-//                BigDecimal tp = marketAsk
-//                        .add(tpDistance)
-//                        .setScale(2, RoundingMode.HALF_UP);
-//
-//                scalperDto.setSl(sl);
-//                scalperDto.setTp(tp);
-//                return scalperDto;
-//
-//            } else if (RED.equals(currentCandleData.getColor())) {
-//
-//                if(currentCandleData.getBodyAbs().compareTo(STRONG_BODY_ABS) > 0){
-//                    ScalperDto scalperDto = new ScalperDto("SHORT");
-//
-//                    BigDecimal sl = marketBid
-//                            .add(slShortDistance)
-//                            .setScale(2, RoundingMode.HALF_UP);
-//
-//                    BigDecimal tp = marketBid
-//                            .subtract(tpShortDistance)
-//                            .setScale(2, RoundingMode.HALF_UP);
-//
-//                    scalperDto.setSl(sl);
-//                    scalperDto.setTp(tp);
-//                    return scalperDto;
-//                }
-//
-//                return new ScalperDto("SKIP");
-//            }
-//        }
-//
-//        return new ScalperDto("SKIP");
-//    }
 
     private boolean isStrongCandleAndPriceInProgressZone(CurrentCandleData candle,
                                                          BigDecimal marketBid,
@@ -270,6 +217,30 @@ public class ScalperService {
         return positionOpen.compareAndSet(false, true);
     }
 
+    public boolean tryAcquirePositionSlotV2() {
+        if (!scalperFeatureEnabled.get()) {
+            return false;
+        }
+
+        if (minuteCandleAggregator.isJavaScalperSleeping()) {
+            return false;
+        }
+
+        return positionOpenV2.compareAndSet(false, true);
+    }
+
+    public boolean tryAcquirePositionSlotV3() {
+        if (!scalperFeatureEnabled.get()) {
+            return false;
+        }
+
+        if (minuteCandleAggregator.isJavaScalperSleeping()) {
+            return false;
+        }
+
+        return positionOpenV3.compareAndSet(false, true);
+    }
+
     /**
      * Zwolnienie slotu po zamknięciu pozycji albo błędzie otwarcia.
      */
@@ -277,23 +248,35 @@ public class ScalperService {
         positionOpen.set(false);
     }
 
-    public void acquirePositionSlot() {
-        positionOpen.set(true);
+    public void releasePositionSlotV2() {
+        positionOpenV2.set(false);
     }
 
-    /**
-     * Dodatkowy helper diagnostyczny.
-     */
-    public boolean isPositionOpen() {
-        return positionOpen.get();
+    public void releasePositionSlotV3() {
+        positionOpenV3.set(false);
     }
 
     public void enable() {
+        positionOpen.set(false);
+        positionOpenV2.set(false);
+        positionOpenV3.set(false);
+
         scalperFeatureEnabled.set(true);
+
+        logger.info("Scalper enabled. Slots reset: V1={}, V2={}, V3={}",
+                positionOpen.get(),
+                positionOpenV2.get(),
+                positionOpenV3.get());
     }
 
     public void disable() {
         scalperFeatureEnabled.set(false);
+
+        positionOpen.set(false);
+        positionOpenV2.set(false);
+        positionOpenV3.set(false);
+
+        logger.info("Scalper disabled. Slots reset.");
     }
 
     public void sleep() {

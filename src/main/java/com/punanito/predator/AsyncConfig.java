@@ -14,8 +14,8 @@ public class AsyncConfig {
     public Executor n8nTickExecutor() {
         ThreadPoolTaskExecutor exec = new ThreadPoolTaskExecutor();
         exec.setCorePoolSize(4);
-        exec.setMaxPoolSize(16);
-        exec.setQueueCapacity(32);
+        exec.setMaxPoolSize(100);
+        exec.setQueueCapacity(1000);
         exec.setThreadNamePrefix("n8n-tick-worker-");
         exec.setWaitForTasksToCompleteOnShutdown(true);
         exec.setAwaitTerminationSeconds(30);
@@ -27,9 +27,22 @@ public class AsyncConfig {
     public Executor n8nOrderExecutor() {
         ThreadPoolTaskExecutor exec = new ThreadPoolTaskExecutor();
         exec.setCorePoolSize(10);
-        exec.setMaxPoolSize(20);
-        exec.setQueueCapacity(40);
+        exec.setMaxPoolSize(100);
+        exec.setQueueCapacity(200);
         exec.setThreadNamePrefix("n8n-order-worker-");
+        exec.setWaitForTasksToCompleteOnShutdown(true);
+        exec.setAwaitTerminationSeconds(30);
+        exec.initialize();
+        return exec;
+    }
+
+    @Bean(name = "n8nOrderReplaceExecutor")
+    public Executor n8nOrderReplaceExecutor() {
+        ThreadPoolTaskExecutor exec = new ThreadPoolTaskExecutor();
+        exec.setCorePoolSize(4);
+        exec.setMaxPoolSize(20);
+        exec.setQueueCapacity(100);
+        exec.setThreadNamePrefix("n8n-order-replace-worker-");
         exec.setWaitForTasksToCompleteOnShutdown(true);
         exec.setAwaitTerminationSeconds(30);
         exec.initialize();
@@ -40,8 +53,8 @@ public class AsyncConfig {
     public Executor n8nOrderNotFoundExecutor() {
         ThreadPoolTaskExecutor exec = new ThreadPoolTaskExecutor();
         exec.setCorePoolSize(10);
-        exec.setMaxPoolSize(20);
-        exec.setQueueCapacity(40);
+        exec.setMaxPoolSize(100);
+        exec.setQueueCapacity(200);
         exec.setThreadNamePrefix("n8n-orderNotFound-worker-");
         exec.setWaitForTasksToCompleteOnShutdown(true);
         exec.setAwaitTerminationSeconds(30);
@@ -53,8 +66,8 @@ public class AsyncConfig {
     public Executor n8nReconcileExecutor() {
         ThreadPoolTaskExecutor exec = new ThreadPoolTaskExecutor();
         exec.setCorePoolSize(10);
-        exec.setMaxPoolSize(20);
-        exec.setQueueCapacity(40);
+        exec.setMaxPoolSize(100);
+        exec.setQueueCapacity(200);
         exec.setThreadNamePrefix("n8n-reconcile-worker-");
         exec.setWaitForTasksToCompleteOnShutdown(true);
         exec.setAwaitTerminationSeconds(30);

@@ -39,6 +39,9 @@ public class N8nService {
     @Value("${n8n.webhook.order.url}")
     private String n8nWebhookOrderUrl;
 
+    @Value("${n8n.webhook.orderReplace.url}")
+    private String n8nWebhookOrderReplaceUrl;
+
     @Value("${n8n.webhook.orderNotFound.url}")
     private String n8nWebhookOrderNotFoundUrl;
 
@@ -130,6 +133,32 @@ public class N8nService {
         logger.info("sendOrderToN8n " + orderStatus);
         PositionRequest request = new PositionRequest(positionId, clientId,orderId,positionStatus,orderStatus,executionType,clientId,priceOpen,tp,sl, execPrice, positionNotFound, grossProfit, accountBalance);
         logger.info("sendOrderToN8n PositionRequest: {}", request);
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+
+        HttpEntity<PositionRequest> entity = new HttpEntity<>(request, headers);
+
+        ResponseEntity<String> response = restTemplate.postForEntity(urlInput, entity, String.class);
+
+        if (response.getBody().contains("Workflow was started")) {
+            // skip to save memory
+        } else {
+            logger.warn(response.getBody());
+        }
+    }
+
+    @Async("n8nOrderReplaceExecutor")
+    public void sendOrderReplaceToN8n(long orderId, long positionId, String clientId, String executionType, String positionStatus,
+                               String orderStatus, double priceOpen, double sl, double tp, double execPrice, boolean positionNotFound, double grossProfit, long accountBalance) {
+        sendOrderReplaceToN8n(n8nWebhookOrderReplaceUrl, orderId, positionId, clientId, executionType, positionStatus, orderStatus, priceOpen, sl, tp, execPrice, positionNotFound, grossProfit, accountBalance);
+    }
+
+
+    private void sendOrderReplaceToN8n(String urlInput, long orderId, long positionId, String clientId, String executionType, String positionStatus,
+                                String orderStatus, double priceOpen, double sl, double tp, double execPrice, boolean positionNotFound, double grossProfit, long accountBalance) {
+        logger.info("sendOrderReplaceToN8n " + orderStatus);
+        PositionRequest request = new PositionRequest(positionId, clientId,orderId,positionStatus,orderStatus,executionType,clientId,priceOpen,tp,sl, execPrice, positionNotFound, grossProfit, accountBalance);
+        logger.info("sendOrderReplaceToN8n PositionRequest: {}", request);
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
 
