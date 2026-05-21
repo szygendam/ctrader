@@ -336,16 +336,9 @@ public class CTraderWebSocketClient {
         boolean isBuy = operation.equals("LONG");
         if (accountBalanceHalf > 0) {
 
-            long goldId = findSymbolByName("US 500");
-            if (goldId == 0) {
-                goldId = findSymbolByName("US_500");
-                if (goldId == 0) {
-                    goldId = findSymbolByName("US500");
-                }
-            }
-
+            long symbolId = findSymbolByName("US500");
             long volume = 100;
-            sendMarketOrder(goldId, isBuy, volume, message, tp, sl);
+            sendMarketOrder(symbolId, isBuy, volume, message, tp, sl);
         }
     }
 
