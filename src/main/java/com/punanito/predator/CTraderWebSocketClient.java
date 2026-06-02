@@ -55,7 +55,8 @@ public class CTraderWebSocketClient {
     private Map<Long, String> symbolById = new HashMap<>();
     private Map<Long, Integer> symbolDigits = new HashMap<>();
     private Map<Long, Long> symbolLotSize = new HashMap<>();
-    private Map<Long, PositionDto> positionMap = new HashMap<>();
+    private Map<Long, PositionDto> protectionPositionMap = new HashMap<>();
+    private Map<Long, PositionDto> reconcilePositionMap = new HashMap<>();
     private double accountBalance = 0.0;
     private double accountBalanceHalf = 500;
     private long lastBid = 0;
@@ -64,8 +65,6 @@ public class CTraderWebSocketClient {
     private ScheduledExecutorService ticksWatcher;
     private ScheduledExecutorService unprotectedPositionWatcher;
     private AtomicLong lastPosition = new AtomicLong(0);
-    private List<Long> reconcilePositionIdList = new ArrayList<>();
-    private List<Long> reconcileOpenPositionIdList = new ArrayList<>();
 
 
     private final N8nService n8nService;
@@ -88,7 +87,7 @@ public class CTraderWebSocketClient {
         CLIENT_SECRET = clientSecret;
         ACCESS_TOKEN = accessToken;
 
-        positionMap.clear();
+        protectionPositionMap.clear();
         symbolLotSize.clear();
         symbolByName.clear();
         symbolById.clear();
@@ -463,7 +462,7 @@ public class CTraderWebSocketClient {
 
     public void protect(double sl, double tp, long positionId) {
         logger.info("protect sl:{}, tp:{}, positionId:{} ", sl, tp, positionId);
-        PositionDto positionDto = positionMap.get(positionId);
+        PositionDto positionDto = protectionPositionMap.get(positionId);
         if (sl == 0.0 && tp == 0.0 ||
                 (tp > 8000 || sl< 100) ||
                 sl == tp) {
@@ -473,7 +472,7 @@ public class CTraderWebSocketClient {
             logger.warn("skipping protect the same SL/TP");
             return;
         }
-        positionMap.putIfAbsent(positionId, new PositionDto(sl,tp));
+        protectionPositionMap.putIfAbsent(positionId, new PositionDto(sl,tp));
         lastPosition.set(positionId);
         ProtoOAAmendPositionSLTPReq req = ProtoOAAmendPositionSLTPReq.newBuilder()
                 .setStopLoss(normalizePrice(sl,2))
@@ -564,14 +563,11 @@ public class CTraderWebSocketClient {
                     }
 
                     if(protoOAPosition.hasStopLoss() && POSITION_STATUS_OPEN.equals(protoOAPosition.getPositionStatus())) {
-                        reconcilePositionIdList.add(protoOAPosition.getPositionId());
+                        reconcilePositionMap.put(protoOAPosition.getPositionId(), new PositionDto(protoOAPosition.getPositionId(), protoOAPosition.getStopLoss(), protoOAPosition.getTakeProfit()));
                     }
                 }
-                n8nService.sendReconcileToN8n(reconcilePositionIdList);
-
-                reconcilePositionIdList = res.getPositionList().stream()
-                        .map(ProtoOAPosition::getPositionId)
-                        .collect(Collectors.toList());
+                n8nService.sendReconcileToN8n(reconcilePositionMap);
+                reconcilePositionMap.clear();
             }
             break;
 
@@ -1076,11 +1072,9 @@ public class CTraderWebSocketClient {
     public void reconcile(long positionId) {
         logger.info("reconcile: " + positionId);
 
-        Optional<Long> exist = reconcilePositionIdList.stream()
-                .filter(id -> id.equals(positionId))
-                .findAny();
+        boolean exist = reconcilePositionMap.containsKey(positionId);
 
-        if (!exist.isPresent()) {
+        if (!exist) {
             logger.warn("Position ID {} not found in reconcile list", positionId);
             n8nService.sendNotFoundOrderToN8n(positionId);
         }

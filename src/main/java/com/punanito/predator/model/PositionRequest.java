@@ -16,6 +16,13 @@ public class PositionRequest {
     private boolean positionNotFound;
     private double grossProfit;
 
+    public PositionRequest(long positionId, double tp, double sl) {
+        this.positionId = positionId;
+        this.tp = tp;
+        this.sl = sl;
+    }
+
+
     public PositionRequest(long positionId, String clientId, long orderId, String positionStatus, String orderStatus,
                            String executionType, String clientId1, double priceOpen, double tp, double sl, double execPrice, boolean positionNotFound, double grossProfit, long accountBalance) {
         this.positionId = positionId;

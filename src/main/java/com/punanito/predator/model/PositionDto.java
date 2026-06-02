@@ -1,6 +1,5 @@
 package com.punanito.predator.model;
 
-
 public class PositionDto {
 
     private boolean isBuy;
@@ -9,8 +8,16 @@ public class PositionDto {
     private double sl;
     private long positionId;
     private boolean reprotectAlreadySend;
+    private String clientMessage;
+    private long orderId;
 
     public PositionDto(double sl, double tp) {
+        this.tp = tp;
+        this.sl = sl;
+    }
+
+    public PositionDto(long positionId, double sl, double tp) {
+        this.positionId = positionId;
         this.tp = tp;
         this.sl = sl;
     }
@@ -52,4 +59,19 @@ public class PositionDto {
         this.sl = sl;
     }
 
+    public String getClientMessage() {
+        return clientMessage;
+    }
+
+    public void setClientMessage(String clientMessage) {
+        this.clientMessage = clientMessage;
+    }
+
+    public long getOrderId() {
+        return orderId;
+    }
+
+    public void setOrderId(long orderId) {
+        this.orderId = orderId;
+    }
 }

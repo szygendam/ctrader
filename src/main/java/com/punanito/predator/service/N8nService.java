@@ -1,9 +1,6 @@
 package com.punanito.predator.service;
 
-import com.punanito.predator.model.AccountRequest;
-import com.punanito.predator.model.ConnectRequest;
-import com.punanito.predator.model.PositionRequest;
-import com.punanito.predator.model.PriceRequest;
+import com.punanito.predator.model.*;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -19,6 +16,7 @@ import org.springframework.web.client.RestTemplate;
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.Map;
 
 @Service
 public class N8nService {
@@ -173,10 +171,10 @@ public class N8nService {
         }
     }
 
-    private void sendReconcileToN8n(long positionId) {
-        logger.info("sendReconcileToN8n positionId " + positionId);
+    private void sendReconcileToN8n(PositionDto positionDto) {
+        logger.info("sendReconcileToN8n positionId " + positionDto.getPositionId());
         String url = n8nReconcileWebhookUrl;
-        PositionRequest request = new PositionRequest(positionId);
+        PositionRequest request = new PositionRequest(positionDto.getPositionId(), positionDto.getTp(), positionDto.getSl());
         request.setPosistionStatus("RECONCILE_OPEN");
         logger.info("sendReconcileToN8n PositionRequest: {}", request);
         HttpHeaders headers = new HttpHeaders();
@@ -194,9 +192,7 @@ public class N8nService {
     }
 
     @Async("n8nReconcileExecutor")
-    public void sendReconcileToN8n(List<Long> reconcilePositionIdList) {
-        for (Long positionId : reconcilePositionIdList) {
-            sendReconcileToN8n(positionId);
-        }
+    public void sendReconcileToN8n(Map<Long, PositionDto> reconcilePositionMap) {
+        reconcilePositionMap.forEach((k,v) -> sendReconcileToN8n(v));
     }
 }
