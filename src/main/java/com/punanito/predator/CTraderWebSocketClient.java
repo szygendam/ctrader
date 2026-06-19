@@ -28,10 +28,7 @@ import java.net.http.HttpClient;
 import java.net.http.WebSocket;
 import java.nio.ByteBuffer;
 import java.util.*;
-import java.util.concurrent.CompletionStage;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
 
@@ -50,13 +47,14 @@ public class CTraderWebSocketClient {
     long accountId;
     long lastTickTime = 0;
     int connectErrorCount = 0;
-    private Map<Long, ProtoOASymbol> symbolDetails = new HashMap<>();
-    private Map<String, Integer> symbolByName = new HashMap<>();
-    private Map<Long, String> symbolById = new HashMap<>();
-    private Map<Long, Integer> symbolDigits = new HashMap<>();
-    private Map<Long, Long> symbolLotSize = new HashMap<>();
-    private Map<Long, PositionDto> protectionPositionMap = new HashMap<>();
-    private Map<Long, PositionDto> reconcilePositionMap = new HashMap<>();
+    private Map<Long, ProtoOASymbol> symbolDetails = new ConcurrentHashMap<>();
+    private Map<String, Integer> symbolByName = new ConcurrentHashMap<>();
+    private Map<Long, String> symbolById = new ConcurrentHashMap<>();
+    private Map<Long, Integer> symbolDigits = new ConcurrentHashMap<>();
+    private Map<Long, Long> symbolLotSize = new ConcurrentHashMap<>();
+    private Map<Long, PositionDto> protectionPositionMap = new ConcurrentHashMap<>();
+    private Map<Long, PositionDto> reconcilePositionMap = new ConcurrentHashMap<>();
+    private List<Long> reconcilePositionIdList = new ArrayList<>();
     private double accountBalance = 0.0;
     private double accountBalanceHalf = 500;
     private long lastBid = 0;
@@ -88,6 +86,7 @@ public class CTraderWebSocketClient {
         ACCESS_TOKEN = accessToken;
 
         protectionPositionMap.clear();
+        reconcilePositionMap.clear();
         symbolLotSize.clear();
         symbolByName.clear();
         symbolById.clear();
@@ -567,6 +566,10 @@ public class CTraderWebSocketClient {
                     }
                 }
                 n8nService.sendReconcileToN8n(reconcilePositionMap);
+                reconcilePositionMap.clear();
+                reconcilePositionIdList = res.getPositionList().stream()
+                        .map(ProtoOAPosition::getPositionId)
+                        .collect(Collectors.toList());
             }
             break;
 
@@ -1071,9 +1074,11 @@ public class CTraderWebSocketClient {
     public void reconcile(long positionId) {
         logger.info("reconcile: " + positionId);
 
-        boolean exist = reconcilePositionMap.containsKey(positionId);
+        Optional<Long> exist = reconcilePositionIdList.stream()
+                .filter(id -> id.equals(positionId))
+                .findAny();
 
-        if (!exist) {
+        if (!exist.isPresent()) {
             logger.warn("Position ID {} not found in reconcile list", positionId);
             n8nService.sendNotFoundOrderToN8n(positionId);
         }
