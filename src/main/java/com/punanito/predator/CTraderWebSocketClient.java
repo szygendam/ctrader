@@ -567,7 +567,6 @@ public class CTraderWebSocketClient {
                     }
                 }
                 n8nService.sendReconcileToN8n(reconcilePositionMap);
-                reconcilePositionMap.clear();
             }
             break;
 
