@@ -561,10 +561,12 @@ public class CTraderWebSocketClient {
                         close(protoOAPosition.getPositionId());
                     }
 
-                    if(protoOAPosition.hasStopLoss() && POSITION_STATUS_OPEN.equals(protoOAPosition.getPositionStatus())) {
+                    if(POSITION_STATUS_OPEN.equals(protoOAPosition.getPositionStatus())) {
+                        logger.info("putting reconcilePositionMap " + protoOAPosition.getPositionId());
                         reconcilePositionMap.put(protoOAPosition.getPositionId(), new PositionDto(protoOAPosition.getPositionId(), protoOAPosition.getStopLoss(), protoOAPosition.getTakeProfit()));
                     }
                 }
+                logger.info(" reconcilePositionMap  size" + reconcilePositionMap.size());
                 n8nService.sendReconcileToN8n(reconcilePositionMap);
                 reconcilePositionMap.clear();
                 reconcilePositionIdList = res.getPositionList().stream()
