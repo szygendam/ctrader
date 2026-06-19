@@ -566,8 +566,8 @@ public class CTraderWebSocketClient {
                         reconcilePositionMap.put(protoOAPosition.getPositionId(), new PositionDto(protoOAPosition.getPositionId(), protoOAPosition.getStopLoss(), protoOAPosition.getTakeProfit()));
                     }
                 }
-                logger.info(" reconcilePositionMap  size" + reconcilePositionMap.size());
-                n8nService.sendReconcileToN8n(reconcilePositionMap);
+                logger.info(" reconcilePositionMap  size " + reconcilePositionMap.size());
+                n8nService.sendReconcileToN8n(new HashMap<>(reconcilePositionMap));
                 reconcilePositionMap.clear();
                 reconcilePositionIdList = res.getPositionList().stream()
                         .map(ProtoOAPosition::getPositionId)

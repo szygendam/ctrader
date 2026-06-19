@@ -65,8 +65,8 @@ public class AsyncConfig {
     @Bean(name = "n8nReconcileExecutor")
     public Executor n8nReconcileExecutor() {
         ThreadPoolTaskExecutor exec = new ThreadPoolTaskExecutor();
-        exec.setCorePoolSize(10);
-        exec.setMaxPoolSize(100);
+        exec.setCorePoolSize(1);
+        exec.setMaxPoolSize(20);
         exec.setQueueCapacity(200);
         exec.setThreadNamePrefix("n8n-reconcile-worker-");
         exec.setWaitForTasksToCompleteOnShutdown(true);

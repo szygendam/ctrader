@@ -15,7 +15,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
 import java.math.BigDecimal;
-import java.util.List;
 import java.util.Map;
 
 @Service
@@ -193,6 +192,7 @@ public class N8nService {
 
     @Async("n8nReconcileExecutor")
     public void sendReconcileToN8n(Map<Long, PositionDto> reconcilePositionMap) {
+        logger.info(" async reconcilePositionMap  size " + reconcilePositionMap.size());
         reconcilePositionMap.forEach((k,v) -> sendReconcileToN8n(v));
     }
 }
