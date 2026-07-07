@@ -80,4 +80,8 @@ public class OrderRequest {
     public void setSymbol(String symbol) {
         this.symbol = symbol;
     }
+
+    public long getAccountId() {
+        return ctidTraderAccountId;
+    }
 }

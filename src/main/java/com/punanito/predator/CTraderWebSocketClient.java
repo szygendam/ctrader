@@ -44,7 +44,8 @@ public class CTraderWebSocketClient {
 
 
     WebSocket webSocket;
-    long accountId;
+    long choosedAccountId;
+    List<Long> accountIdList = new ArrayList<>();
     long lastTickTime = 0;
     int connectErrorCount = 0;
     private Map<Long, ProtoOASymbol> symbolDetails = new ConcurrentHashMap<>();
@@ -177,6 +178,8 @@ public class CTraderWebSocketClient {
                 } else {
                     logger.info("connectErrorCount >= 3 skipping connectToN8n");
                 }
+            } else {
+                connectErrorCount = 0;
             }
         }, 2, 20, TimeUnit.SECONDS);
     }
@@ -209,7 +212,7 @@ public class CTraderWebSocketClient {
     private void sendSymbolList() {
         logger.info("sendSymbolList");
         ProtoOASymbolsListReq req = ProtoOASymbolsListReq.newBuilder()
-                .setCtidTraderAccountId(accountId)
+                .setCtidTraderAccountId(choosedAccountId)
                 .build();
 
         send(req, ProtoOAPayloadType.PROTO_OA_SYMBOLS_LIST_REQ_VALUE);
@@ -220,7 +223,7 @@ public class CTraderWebSocketClient {
         logger.info("sendSymbolById: {} ", id);
         ProtoOASymbolByIdReq req = ProtoOASymbolByIdReq.newBuilder()
                 .addSymbolId(id)
-                .setCtidTraderAccountId(accountId)
+                .setCtidTraderAccountId(choosedAccountId)
                 .build();
 
         send(req, ProtoOAPayloadType.PROTO_OA_SYMBOL_BY_ID_REQ_VALUE);
@@ -241,7 +244,7 @@ public class CTraderWebSocketClient {
     private void sendAccountAuth() {
         logger.info("sendAccountAuth ");
         ProtoOAAccountAuthReq req = ProtoOAAccountAuthReq.newBuilder()
-                .setCtidTraderAccountId(accountId)
+                .setCtidTraderAccountId(choosedAccountId)
                 .setAccessToken(ACCESS_TOKEN)
                 .build();
 
@@ -267,7 +270,7 @@ public class CTraderWebSocketClient {
     private void subscribeToTicks(long symbolId, String symbolName) {
         logger.info("subscribeToTicks " + symbolName);
         ProtoOASubscribeSpotsReq req = ProtoOASubscribeSpotsReq.newBuilder()
-                .setCtidTraderAccountId(accountId)
+                .setCtidTraderAccountId(choosedAccountId)
                 .addSymbolId(symbolId)
                 .build();
 
@@ -281,7 +284,7 @@ public class CTraderWebSocketClient {
             return;
         }
         ProtoOAUnsubscribeSpotsReq req = ProtoOAUnsubscribeSpotsReq.newBuilder()
-                .setCtidTraderAccountId(accountId)
+                .setCtidTraderAccountId(choosedAccountId)
                 .addSymbolId(symbolId)
                 .build();
 
@@ -302,45 +305,50 @@ public class CTraderWebSocketClient {
 //        }
 //    }
 
-    public void sendOrder(String operation, String message, long tp, long sl, String symbolName) {
+    public void sendOrder(String operation, String message, long tp, long sl, String symbolName, long accountId) {
+      if (!accountIdList.contains(accountId)) {
+          logger.error("account id not found in accountIdList: " + accountId);
+          return;
+      }
+
         switch(symbolName) {
             case "XAUUSD":
-                sendGoldOrder(operation, message, tp, sl);
+                sendGoldOrder(operation, message, tp, sl,accountId);
                 break;
             case "US500":
-                sendUs500Order(operation, message, tp, sl);
+                sendUs500Order(operation, message, tp, sl, accountId);
                 break;
             case "XTIUSD":
-                sendOilOrder(operation, message, tp, sl);
+                sendOilOrder(operation, message, tp, sl, accountId);
                 break;
             default:
                 logger.error("unhandled symbol new Order" + symbolName);
         }
     }
 
-    public void sendGoldOrder(String operation, String message, long tp, long sl) {
+    public void sendGoldOrder(String operation, String message, long tp, long sl, long accountId) {
         logger.info("sendGoldOrder");
         boolean isBuy = operation.equals("LONG");
         if (accountBalanceHalf > 0) {
 
             long goldId = findSymbolByName("XAUUSD");
             long volume = 100;
-            sendMarketOrder(goldId, isBuy, volume, message, tp, sl);
+            sendMarketOrder(goldId, isBuy, volume, message, tp, sl, accountId);
         }
     }
 
-    public void sendUs500Order(String operation, String message, long tp, long sl) {
+    public void sendUs500Order(String operation, String message, long tp, long sl,long accountId) {
         logger.info("us500NewOrder");
         boolean isBuy = operation.equals("LONG");
         if (accountBalanceHalf > 0) {
 
             long symbolId = findSymbolByName("US500");
             long volume = 100;
-            sendMarketOrder(symbolId, isBuy, volume, message, tp, sl);
+            sendMarketOrder(symbolId, isBuy, volume, message, tp, sl, accountId);
         }
     }
 
-    public void sendOilOrder(String operation, String message, long tp, long sl) {
+    public void sendOilOrder(String operation, String message, long tp, long sl, long accountId) {
         logger.info("sendOilNewOrder");
         boolean isBuy = operation.equals("LONG");
         if (accountBalanceHalf > 0) {
@@ -348,12 +356,12 @@ public class CTraderWebSocketClient {
             long oilId = findSymbolByName("XTIUSD");
 
             long volume = 100;
-            sendMarketOrder(oilId, isBuy, volume, message, tp, sl);
+            sendMarketOrder(oilId, isBuy, volume, message, tp, sl, accountId);
         }
     }
 
 
-    private void sendMarketOrder(long symbolId, boolean isBuy, long volume, String clientOrderId,long tp, long sl) {
+    private void sendMarketOrder(long symbolId, boolean isBuy, long volume, String clientOrderId,long tp, long sl, long accountId) {
         logger.info("sendMarketOrder clientOrderId: {} volume: {} sl: {} tp: {} ", clientOrderId, volume,sl,tp);
         if(tp != 0) {
             logger.info("sendMarketOrder with preset tp: {} sl: {} ", tp, sl);
@@ -375,7 +383,7 @@ public class CTraderWebSocketClient {
             send(req, ProtoOAPayloadType.PROTO_OA_NEW_ORDER_REQ_VALUE);
         } else {
             ProtoOANewOrderReq req = ProtoOANewOrderReq.newBuilder()
-                    .setCtidTraderAccountId(accountId)
+                    .setCtidTraderAccountId(choosedAccountId)
                     .setSymbolId(symbolId)
                     .setOrderType(ProtoOAOrderType.MARKET)
                     .setTradeSide(isBuy
@@ -445,7 +453,7 @@ public class CTraderWebSocketClient {
         // send...
 
         ProtoOANewOrderReq req = ProtoOANewOrderReq.newBuilder()
-                .setCtidTraderAccountId(accountId)
+                .setCtidTraderAccountId(choosedAccountId)
                 .setSymbolId(symbolId)
                 .setOrderType(ProtoOAOrderType.MARKET)
                 .setTradeSide(isBuy
@@ -477,7 +485,7 @@ public class CTraderWebSocketClient {
                 .setStopLoss(normalizePrice(sl,2))
                 .setTakeProfit(normalizePrice(tp,2))
                 .setPositionId(positionId)
-                .setCtidTraderAccountId(accountId)
+                .setCtidTraderAccountId(choosedAccountId)
                 .build();
 
         send(req, ProtoOAPayloadType.PROTO_OA_AMEND_POSITION_SLTP_REQ_VALUE);
@@ -490,7 +498,7 @@ public class CTraderWebSocketClient {
                 .setStopLoss(normalizePrice(sl,2))
                 .setTakeProfit(normalizePrice(tp,2))
                 .setPositionId(positionId)
-                .setCtidTraderAccountId(accountId)
+                .setCtidTraderAccountId(choosedAccountId)
                 .build();
 
         send(req, ProtoOAPayloadType.PROTO_OA_AMEND_POSITION_SLTP_REQ_VALUE);
@@ -594,9 +602,12 @@ public class CTraderWebSocketClient {
                             acc.getCtidTraderAccountId(),
                             acc.getIsLive(),
                             acc.getBrokerTitleShort());
+
+                    accountIdList.add(acc.getCtidTraderAccountId());
+
                     if(!acc.getIsLive() && acc.getBrokerTitleShort().equals("Pepperstone - Europe")) {
-                        accountId =  acc.getCtidTraderAccountId();
-                        logger.info("Wybrano konto: " + accountId);
+                        choosedAccountId =  acc.getCtidTraderAccountId();
+                        logger.info("Wybrano konto: " + choosedAccountId);
                     }
                 }
 
@@ -1039,7 +1050,7 @@ public class CTraderWebSocketClient {
     public void logout() {
         logger.info("logout ");
         ProtoOAAccountLogoutReq req = ProtoOAAccountLogoutReq.newBuilder()
-                .setCtidTraderAccountId(accountId)
+                .setCtidTraderAccountId(choosedAccountId)
                 .build();
 
         send(req, ProtoOAPayloadType.PROTO_OA_ACCOUNT_LOGOUT_REQ_VALUE);
@@ -1056,7 +1067,7 @@ public class CTraderWebSocketClient {
 
             ProtoOAClosePositionReq req = ProtoOAClosePositionReq.newBuilder()
                     .setPositionId(positionId)
-                    .setCtidTraderAccountId(accountId)
+                    .setCtidTraderAccountId(choosedAccountId)
                     .setVolume(100)
                     .build();
 
@@ -1067,7 +1078,7 @@ public class CTraderWebSocketClient {
         logger.info("closeNotProtected - send reconcile request");
 
         ProtoOAReconcileReq req = ProtoOAReconcileReq.newBuilder()
-                .setCtidTraderAccountId(accountId)
+                .setCtidTraderAccountId(choosedAccountId)
                 .build();
 
         send(req, ProtoOAPayloadType.PROTO_OA_RECONCILE_REQ_VALUE);
