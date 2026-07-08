@@ -11,7 +11,7 @@ public class OrderRequest {
     private long tp;
     private String status;
     private String symbol;
-    private long ctidTraderAccountId;
+    private long accountId;
 
 
     public String getMessage() {
@@ -69,8 +69,8 @@ public class OrderRequest {
         return orderId;
     }
 
-    public long getCtidTraderAccountId() {
-        return ctidTraderAccountId;
+    public long getAccountId() {
+        return accountId;
     }
 
     public String getSymbol() {
@@ -79,9 +79,5 @@ public class OrderRequest {
 
     public void setSymbol(String symbol) {
         this.symbol = symbol;
-    }
-
-    public long getAccountId() {
-        return ctidTraderAccountId;
     }
 }

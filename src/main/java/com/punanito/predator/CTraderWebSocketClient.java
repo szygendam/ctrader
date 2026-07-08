@@ -362,7 +362,7 @@ public class CTraderWebSocketClient {
 
 
     private void sendMarketOrder(long symbolId, boolean isBuy, long volume, String clientOrderId,long tp, long sl, long accountId) {
-        logger.info("sendMarketOrder clientOrderId: {} volume: {} sl: {} tp: {} ", clientOrderId, volume,sl,tp);
+        logger.info("sendMarketOrder accountId: {} clientOrderId: {} volume: {} sl: {} tp: {} ", accountId, clientOrderId, volume,sl,tp);
         if(tp != 0) {
             logger.info("sendMarketOrder with preset tp: {} sl: {} ", tp, sl);
             long relativeTp = tp * 100000L;
@@ -605,9 +605,11 @@ public class CTraderWebSocketClient {
 
                     accountIdList.add(acc.getCtidTraderAccountId());
 
-                    if(!acc.getIsLive() && acc.getBrokerTitleShort().equals("Pepperstone - Europe")) {
+//                    if(!acc.getIsLive() && acc.getBrokerTitleShort().equals("Pepperstone - Europe")) {
+//                    logger.info("Wybrano konto demo: " + choosedAccountId);
+                    if(acc.getIsLive() && acc.getBrokerTitleShort().equals("Pepperstone - Europe")) {
                         choosedAccountId =  acc.getCtidTraderAccountId();
-                        logger.info("Wybrano konto: " + choosedAccountId);
+                        logger.info("Wybrano konto live: " + choosedAccountId);
                     }
                 }
 
