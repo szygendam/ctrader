@@ -94,12 +94,13 @@ public class CTraderWebSocketClient {
         symbolDigits.clear();
         lastPosition.set(0);
         String ctraderUrl = "wss://demo.ctraderapi.com:5035";
-        logger.info("Connecting to ctraderapi.com {}", ctraderUrl);
+        String ctraderLiveUrl = "wss://live.ctraderapi.com:5035";
+        logger.info("Connecting to ctraderapi.com {}", ctraderLiveUrl);
 
         HttpClient.newHttpClient()
                 .newWebSocketBuilder()
                 .buildAsync(
-                        URI.create(ctraderUrl),
+                        URI.create(ctraderLiveUrl),
                         new WebSocket.Listener() {
 
                             private final ByteArrayOutputStream buffer = new ByteArrayOutputStream();
