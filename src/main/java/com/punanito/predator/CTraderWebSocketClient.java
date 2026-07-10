@@ -94,13 +94,13 @@ public class CTraderWebSocketClient {
         symbolDigits.clear();
         lastPosition.set(0);
         String ctraderUrl = "wss://demo.ctraderapi.com:5035";
-        String ctraderLiveUrl = "wss://live.ctraderapi.com:5035";
-        logger.info("Connecting to ctraderapi.com {}", ctraderLiveUrl);
+//        String ctraderLiveUrl = "wss://live.ctraderapi.com:5035";
+        logger.info("Connecting to ctraderapi.com {}", ctraderUrl);
 
         HttpClient.newHttpClient()
                 .newWebSocketBuilder()
                 .buildAsync(
-                        URI.create(ctraderLiveUrl),
+                        URI.create(ctraderUrl),
                         new WebSocket.Listener() {
 
                             private final ByteArrayOutputStream buffer = new ByteArrayOutputStream();
@@ -608,9 +608,9 @@ public class CTraderWebSocketClient {
 
 //                    if(!acc.getIsLive() && acc.getBrokerTitleShort().equals("Pepperstone - Europe")) {
 //                    logger.info("Wybrano konto demo: " + choosedAccountId);
-                    if(acc.getIsLive() && acc.getBrokerTitleShort().equals("Pepperstone - Europe")) {
+                    if(!acc.getIsLive() && acc.getBrokerTitleShort().equals("Pepperstone - Europe")) {
                         choosedAccountId =  acc.getCtidTraderAccountId();
-                        logger.info("Wybrano konto live: " + choosedAccountId);
+                        logger.info("Wybrano konto: " + choosedAccountId);
                     }
                 }
 
