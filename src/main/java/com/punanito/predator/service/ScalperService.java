@@ -21,7 +21,7 @@ public class ScalperService {
 
     private static final BigDecimal MAX_SPREAD = new BigDecimal("0.25");
 
-    private static final BigDecimal MIN_BODY_ABS = new BigDecimal("1.0");
+    private static final BigDecimal MIN_BODY_ABS = new BigDecimal("0.5");
     private static final BigDecimal STRONG_BODY_ABS = new BigDecimal("1.2");
 
     private static final BigDecimal LONG_POSITION_IN_RANGE = new BigDecimal("0.85");
