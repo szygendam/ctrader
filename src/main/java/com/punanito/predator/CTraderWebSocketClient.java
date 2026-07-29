@@ -735,9 +735,14 @@ public class CTraderWebSocketClient {
                 if(symbolName != null){
                     n8nService.sendTicksToN8n(lastBid, lastAsk, symbolName, symbolByName.get(symbolName));
                     if ("XAUUSD".equals(symbolName)  && lastBid > 0 && lastAsk > 0 ){
-                        handleJavaScalper(lastBid,lastAsk, symbolName, event.getSymbolId(), lastTickTime);
-                        handleJavaScalperV2(lastBid,lastAsk, symbolName, event.getSymbolId(), lastTickTime);
-                        handleJavaScalperV3(lastBid,lastAsk, symbolName, event.getSymbolId(), lastTickTime);
+                        if (scalperService.isEnabled()){
+                            handleJavaScalper(lastBid,lastAsk, symbolName, event.getSymbolId(), lastTickTime);
+                            handleJavaScalperV2(lastBid,lastAsk, symbolName, event.getSymbolId(), lastTickTime);
+                            handleJavaScalperV3(lastBid,lastAsk, symbolName, event.getSymbolId(), lastTickTime);
+                        } else {
+                            logger.info("Scalper is disabled");
+                        }
+
                     }
                 }
             }
@@ -857,7 +862,7 @@ public class CTraderWebSocketClient {
         boolean positionActuallyOpened = false;
 
         if (!scalperService.tryAcquirePositionSlot()) {
-            logger.debug("Scalper slot is busy");
+            logger.debug("Scalper V1 slot is busy");
             return;
         }
 
