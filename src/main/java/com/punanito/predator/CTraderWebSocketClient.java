@@ -306,7 +306,7 @@ public class CTraderWebSocketClient {
 //        }
 //    }
 
-    public void sendOrder(String operation, String message, long tp, long sl, String symbolName, long accountId) {
+    public void sendOrder(String operation, String message, long tp, long sl, String symbolName, long accountId, long volume) {
       if (!accountIdList.contains(accountId)) {
           logger.error("account id not found in accountIdList: " + accountId);
           return;
@@ -314,49 +314,55 @@ public class CTraderWebSocketClient {
 
         switch(symbolName) {
             case "XAUUSD":
-                sendGoldOrder(operation, message, tp, sl,accountId);
+                sendGoldOrder(operation, message, tp, sl,accountId, volume);
                 break;
             case "US500":
-                sendUs500Order(operation, message, tp, sl, accountId);
+                sendUs500Order(operation, message, tp, sl, accountId, volume);
                 break;
             case "XTIUSD":
-                sendOilOrder(operation, message, tp, sl, accountId);
+                sendOilOrder(operation, message, tp, sl, accountId, volume);
                 break;
             default:
                 logger.error("unhandled symbol new Order" + symbolName);
         }
     }
 
-    public void sendGoldOrder(String operation, String message, long tp, long sl, long accountId) {
+    public void sendGoldOrder(String operation, String message, long tp, long sl, long accountId, long volume) {
         logger.info("sendGoldOrder");
         boolean isBuy = operation.equals("LONG");
         if (accountBalanceHalf > 0) {
 
             long goldId = findSymbolByName("XAUUSD");
-            long volume = 100;
+            if (volume == 0) {
+                volume = 100;
+            }
             sendMarketOrder(goldId, isBuy, volume, message, tp, sl, accountId);
         }
     }
 
-    public void sendUs500Order(String operation, String message, long tp, long sl,long accountId) {
+    public void sendUs500Order(String operation, String message, long tp, long sl,long accountId, long volume) {
         logger.info("us500NewOrder");
         boolean isBuy = operation.equals("LONG");
         if (accountBalanceHalf > 0) {
 
             long symbolId = findSymbolByName("US500");
-            long volume = 100;
+              if (volume == 0) {
+                  volume = 100;
+              }
             sendMarketOrder(symbolId, isBuy, volume, message, tp, sl, accountId);
         }
     }
 
-    public void sendOilOrder(String operation, String message, long tp, long sl, long accountId) {
+    public void sendOilOrder(String operation, String message, long tp, long sl, long accountId, long volume) {
         logger.info("sendOilNewOrder");
         boolean isBuy = operation.equals("LONG");
         if (accountBalanceHalf > 0) {
 
             long oilId = findSymbolByName("XTIUSD");
 
-            long volume = 100;
+            if (volume == 0) {
+                volume = 100;
+            }
             sendMarketOrder(oilId, isBuy, volume, message, tp, sl, accountId);
         }
     }

@@ -12,6 +12,7 @@ public class OrderRequest {
     private String status;
     private String symbol;
     private long accountId;
+    private long volume;
 
 
     public String getMessage() {
@@ -79,5 +80,13 @@ public class OrderRequest {
 
     public void setSymbol(String symbol) {
         this.symbol = symbol;
+    }
+
+    public long getVolume() {
+        return volume;
+    }
+
+    public void setVolume(long volume) {
+        this.volume = volume;
     }
 }
