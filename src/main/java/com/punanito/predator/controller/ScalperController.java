@@ -32,7 +32,7 @@ public class ScalperController {
     @PostMapping("/enableV2")
     public ResponseEntity<Void> enableV2() {
         logger.info("Received scalper V2 enable");
-        scalperService.enable();
+        scalperService.enableV2();
         scalperService.releasePositionSlotV2();
         return ResponseEntity.ok().build();
     }
@@ -40,7 +40,7 @@ public class ScalperController {
     @PostMapping("/enableV3")
     public ResponseEntity<Void> enableV3() {
         logger.info("Received scalper V3 enable");
-        scalperService.enable();
+        scalperService.enableV3();
         scalperService.releasePositionSlotV3();
         return ResponseEntity.ok().build();
     }

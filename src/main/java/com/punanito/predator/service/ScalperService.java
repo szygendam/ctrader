@@ -258,7 +258,27 @@ public class ScalperService {
 
     public void enable() {
         positionOpen.set(false);
+
+        scalperFeatureEnabled.set(true);
+
+        logger.info("Scalper enabled. Slots reset: V1={}, V2={}, V3={}",
+                positionOpen.get(),
+                positionOpenV2.get(),
+                positionOpenV3.get());
+    }
+
+    public void enableV2() {
         positionOpenV2.set(false);
+
+        scalperFeatureEnabled.set(true);
+
+        logger.info("Scalper enabled. Slots reset: V1={}, V2={}, V3={}",
+                positionOpen.get(),
+                positionOpenV2.get(),
+                positionOpenV3.get());
+    }
+
+    public void enableV3() {
         positionOpenV3.set(false);
 
         scalperFeatureEnabled.set(true);
