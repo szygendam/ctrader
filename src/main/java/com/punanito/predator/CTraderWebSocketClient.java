@@ -614,7 +614,7 @@ public class CTraderWebSocketClient {
 
 //                    if(!acc.getIsLive() && acc.getBrokerTitleShort().equals("Pepperstone - Europe")) {
 //                    logger.info("Wybrano konto demo: " + choosedAccountId);
-                    if(!acc.getIsLive() && acc.getBrokerTitleShort().equals("Pepperstone - Europe")) {
+                    if(acc.getIsLive() && acc.getBrokerTitleShort().equals("Pepperstone - Europe")) {
                         choosedAccountId =  acc.getCtidTraderAccountId();
                         logger.info("Wybrano konto: " + choosedAccountId);
                     }
