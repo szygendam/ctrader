@@ -746,7 +746,7 @@ public class CTraderWebSocketClient {
                             handleJavaScalperV2(lastBid,lastAsk, symbolName, event.getSymbolId(), lastTickTime);
                             handleJavaScalperV3(lastBid,lastAsk, symbolName, event.getSymbolId(), lastTickTime);
                         } else {
-                            logger.info("Scalper is disabled");
+                            logger.debug("Scalper is disabled");
                         }
 
                     }
