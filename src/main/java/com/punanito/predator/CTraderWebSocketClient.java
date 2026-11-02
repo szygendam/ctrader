@@ -94,7 +94,7 @@ public class CTraderWebSocketClient {
         symbolDigits.clear();
         lastPosition.set(0);
 //        String ctraderUrl = "wss://demo.ctraderapi.com:5035";
-        String ctraderLiveUrl = "wss://live.ctraderapi.com:5035";
+        String ctraderUrl = "wss://live.ctraderapi.com:5035";
         logger.info("Connecting to ctraderapi.com {}", ctraderUrl);
 
         HttpClient.newHttpClient()
