@@ -360,6 +360,7 @@ public class CTraderWebSocketClient {
                 .setSymbolId(symbolId)
                 .setType(type)
                 .setFromTimestamp(from)
+                .setToTimestamp(to)
                 .build();
         String id = UUID.randomUUID().toString();
         CompletableFuture<ProtoOAGetTickDataRes> result = new CompletableFuture<>();

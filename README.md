@@ -89,3 +89,42 @@ Budowanie i testy: `mvn test`, `mvn package`. Artefakt:
 Źródła protokołu i harmonogramu:
 [cTrader tick history](https://help.ctrader.com/open-api/symbol-data/#attain-historical-tick-data),
 [n8n Schedule Trigger](https://docs.n8n.io/integrations/builtin/core-nodes/n8n-nodes-base.scheduletrigger/).
+
+## Eksport XAUUSD od 1 stycznia 2026
+
+Zbuduj aplikację (`mvn package`), uruchom nowy JAR i wykonaj dotychczasową
+autoryzację przez `/connect`. Następnie w drugim terminalu, w katalogu projektu:
+
+```sh
+./tools/export-ticks.sh
+```
+
+Eksporter Java pobiera BID i ASK od `2026-01-01T00:00:00Z` do chwili pierwszego
+uruchomienia. Zapisuje `data/xauusd-2026/YYYY-MM-DD.csv.gz` z kolumnami
+`timestamp_ms,side,price`. To osobne aktualizacje kwotowań, nie transakcje ani
+gotowe sparowane QuoteTick dla NautilusTrader. Kolejność BID/ASK przy identycznym
+czasie nie określa kolejności zdarzeń na serwerze.
+
+Można podać katalog, adres bridge'a i opcjonalny koniec zakresu (wyłączny):
+
+```sh
+./tools/export-ticks.sh data/xauusd-2026 http://localhost:8081 2026-11-07T00:00:00Z
+```
+
+Manifest zachowuje zakres dla wznowienia. Ponowne uruchomienie pomija ukończone
+dni i nadpisuje niedokończony plik `.part`. Aby pobrać nowszy zakres końcowy,
+użyj nowego katalogu. Nie zmieniaj brokera ani konta w trakcie eksportu lub
+wznowienia: bridge nie zwraca ich identyfikatorów w odpowiedzi historii.
+
+Przy `hasMore` zakres jest dzielony na mniejsze fragmenty. Eksporter zachowuje
+osobne ticki o identycznym czasie/cenie, a granice przypisuje tylko do jednego
+fragmentu. Niepełna odpowiedź dla przedziału 1 ms zatrzymuje eksport.
+Ukończony plik oznacza odpowiedzi bez `hasMore`, nie niezależne potwierdzenie
+kompletności archiwum brokera; puste okresy pozostają puste. Nie uruchamiaj
+równolegle innych pętli historii (np. n8n) na tym połączeniu.
+
+Wymagane Java 17+ oraz zbudowany `target/ctrader.bridge-2.1.0.jar`.
+Skrypt korzysta z bibliotek JSON tego JAR-a. Test eksportera znajduje się
+w `tools/TickExportTest.java` (kompilowany razem z `TickExport.java`, z bibliotekami
+Jackson na classpath); obejmuje podział zakresów, granice, zachowanie wielokrotnych
+ticków i zatrzymanie na niepełnej odpowiedzi 1 ms.
