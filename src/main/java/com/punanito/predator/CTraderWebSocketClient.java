@@ -2,6 +2,7 @@ package com.punanito.predator;
 
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.Message;
+import com.punanito.predator.model.TickHistoryResponse;
 import com.punanito.predator.model.PositionDto;
 import com.punanito.predator.model.PriceRequest;
 import com.punanito.predator.model.ScalperDto;
@@ -17,6 +18,8 @@ import org.apache.logging.log4j.util.Strings;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.server.ResponseStatusException;
 
 import javax.annotation.PostConstruct;
 import javax.annotation.PreDestroy;
@@ -43,8 +46,10 @@ public class CTraderWebSocketClient {
     private static String CLIENT_SECRET = Strings.EMPTY;
 
 
-    WebSocket webSocket;
-    long choosedAccountId;
+    private final Map<String, CompletableFuture<ProtoOAGetTickDataRes>> pendingTicks = new ConcurrentHashMap<>();
+    private CompletableFuture<Void> outbound = CompletableFuture.completedFuture(null);
+    volatile WebSocket webSocket;
+    volatile long choosedAccountId;
     List<Long> accountIdList = new ArrayList<>();
     long lastTickTime = 0;
     int connectErrorCount = 0;
@@ -86,6 +91,8 @@ public class CTraderWebSocketClient {
         CLIENT_SECRET = clientSecret;
         ACCESS_TOKEN = accessToken;
 
+        failPendingTicks("cTrader connection is being replaced");
+        choosedAccountId = 0;
         protectionPositionMap.clear();
         reconcilePositionMap.clear();
         symbolLotSize.clear();
@@ -114,6 +121,24 @@ public class CTraderWebSocketClient {
                                 startHeartbeat();
 
                                 WebSocket.Listener.super.onOpen(webSocket);
+                            }
+
+                            @Override
+                            public CompletionStage<?> onClose(WebSocket socket, int statusCode, String reason) {
+                                if (CTraderWebSocketClient.this.webSocket == socket) {
+                                    CTraderWebSocketClient.this.webSocket = null;
+                                    failPendingTicks("cTrader connection closed");
+                                }
+                                return WebSocket.Listener.super.onClose(socket, statusCode, reason);
+                            }
+
+                            @Override
+                            public void onError(WebSocket socket, Throwable error) {
+                                if (CTraderWebSocketClient.this.webSocket == socket) {
+                                    CTraderWebSocketClient.this.webSocket = null;
+                                    failPendingTicks("cTrader transport error");
+                                }
+                                logger.warn("cTrader WebSocket failed", error);
                             }
 
                             @Override
@@ -262,10 +287,18 @@ public class CTraderWebSocketClient {
                 .build();
 
         if(webSocket != null) {
-            webSocket.sendBinary(ByteBuffer.wrap(message.toByteArray()), true);
+            sendBinary(webSocket, message);
         } else {
             logger.warn("trying send  " + payloadType + " to websocket but websocket is null");
         }
+    }
+
+    private synchronized CompletableFuture<WebSocket> sendBinary(WebSocket socket, ProtoMessage message) {
+        // Java WebSocket permits only one outstanding binary send at a time.
+        CompletableFuture<WebSocket> sent = outbound.handle((ignored, error) -> null)
+                .thenCompose(ignored -> socket.sendBinary(ByteBuffer.wrap(message.toByteArray()), true));
+        outbound = sent.handle((ignored, error) -> null);
+        return sent;
     }
 
     private void subscribeToTicks(long symbolId, String symbolName) {
@@ -306,17 +339,44 @@ public class CTraderWebSocketClient {
 //        }
 //    }
 
-    public void sendGetTickHisty(String symbolName,long from, long to){
-        long symbolId = findSymbolByName(symbolName);
+    private void failPendingTicks(String reason) {
+        pendingTicks.values().forEach(result -> result.completeExceptionally(new IllegalStateException(reason)));
+    }
 
+    public CompletableFuture<TickHistoryResponse.QuoteHistory> getTickHistory(
+            String symbolName, long from, long to, ProtoOAQuoteType type) {
+        WebSocket socket = webSocket;
+        if (socket == null || socket.isOutputClosed() || choosedAccountId == 0 || symbolByName.isEmpty()) {
+            throw new ResponseStatusException(
+                    HttpStatus.SERVICE_UNAVAILABLE, "Connect and authenticate cTrader first");
+        }
+        Integer symbolId = findSymbolByName(symbolName);
+        if (symbolId == null) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST, "Unknown symbol: " + symbolName);
+        }
         ProtoOAGetTickDataReq req = ProtoOAGetTickDataReq.newBuilder()
                 .setCtidTraderAccountId(choosedAccountId)
                 .setSymbolId(symbolId)
+                .setType(type)
                 .setFromTimestamp(from)
-                .setToTimestamp(to)
                 .build();
-
-        send(req, ProtoOAPayloadType.PROTO_OA_GET_TICKDATA_REQ_VALUE);
+        String id = UUID.randomUUID().toString();
+        CompletableFuture<ProtoOAGetTickDataRes> result = new CompletableFuture<>();
+        pendingTicks.put(id, result);
+        result.orTimeout(8, TimeUnit.SECONDS).whenComplete((value, error) -> pendingTicks.remove(id, result));
+        ProtoMessage message = ProtoMessage.newBuilder()
+                .setPayloadType(ProtoOAPayloadType.PROTO_OA_GET_TICKDATA_REQ_VALUE)
+                .setClientMsgId(id).setPayload(req.toByteString()).build();
+        try {
+            sendBinary(socket, message)
+                    .whenComplete((sent, error) -> {
+                        if (error != null) result.completeExceptionally(error);
+                    });
+        } catch (Exception error) {
+            result.completeExceptionally(error);
+        }
+        return result.thenApply(TickHistoryResponse::decode);
     }
 
     public void sendOrder(String operation, String message, long tp, long sl, String symbolName, long accountId, long volume) {
@@ -766,19 +826,28 @@ public class CTraderWebSocketClient {
                 }
             }
 
-            case ProtoOAPayloadType.PROTO_OA_GET_TICKDATA_RES_VALUE:{
-                ProtoOAGetTickDataRes event = null;
-                try {
-                    event = ProtoOAGetTickDataRes.parseFrom(message.getPayload());
-                    logger.info("Received PROTO_OA_GET_TICKDATA_RES_VALUE");
-//                    Set<ProtoOATickData> tickdataSet = event.getTickDataList().stream()
-//                            .collect(Collectors.toSet());
-//
-//                    event.getTickDataList().forEach(tickData -> {
-//                        n8nService.sendTickHistoryToN8n(tickData.getBid(), tickData.getAsk(), tickData.getSymbolName(), tickData.getSymbolId());
-//                    })
-                } catch (InvalidProtocolBufferException e) {
-                    logger.error("Failed to parse PROTO_OA_GET_TICKDATA_RES_VALUE", e);
+            break;
+
+            case ProtoOAPayloadType.PROTO_OA_GET_TICKDATA_RES_VALUE: {
+                CompletableFuture<ProtoOAGetTickDataRes> pending = pendingTicks.get(message.getClientMsgId());
+                if (pending != null) {
+                    try {
+                        pending.complete(ProtoOAGetTickDataRes.parseFrom(message.getPayload()));
+                    } catch (InvalidProtocolBufferException error) {
+                        pending.completeExceptionally(error);
+                    }
+                }
+                break;
+            }
+
+            case ProtoOAPayloadType.PROTO_OA_ERROR_RES_VALUE: {
+                ProtoOAErrorRes error = ProtoOAErrorRes.parseFrom(message.getPayload());
+                CompletableFuture<ProtoOAGetTickDataRes> pending = pendingTicks.get(message.getClientMsgId());
+                if (pending != null) {
+                    pending.completeExceptionally(new IllegalStateException(
+                            error.getErrorCode() + ": " + error.getDescription()));
+                } else {
+                    logger.warn("cTrader error: {}", error.getErrorCode());
                 }
                 break;
             }
@@ -1093,6 +1162,7 @@ public class CTraderWebSocketClient {
 
     public void logout() {
         logger.info("logout ");
+        failPendingTicks("cTrader account logged out");
         ProtoOAAccountLogoutReq req = ProtoOAAccountLogoutReq.newBuilder()
                 .setCtidTraderAccountId(choosedAccountId)
                 .build();
