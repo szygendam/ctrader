@@ -188,24 +188,14 @@ public class CTraderWebSocketClient {
 
         ticksWatcher = Executors.newScheduledThreadPool(1);
         ticksWatcher.scheduleAtFixedRate(() -> {
-            logger.info("startTickWatcher");
-            if (System.currentTimeMillis() - lastTickTime > 5000) {
-                if (lastTickTime != 0) {
-                    connectErrorCount++;
-                    logout();
-                    try {
-                        Thread.sleep(10000);
-                    } catch (InterruptedException e) {
-                        throw new RuntimeException(e);
-                    }
-                }
-                if (connectErrorCount < 3) {
+            WebSocket socket = webSocket;
+            if (socket == null || socket.isOutputClosed()) {
+                try {
+                    logger.info("cTrader connection unavailable; requesting reconnect through n8n");
                     n8nService.connectToN8n();
-                } else {
-                    logger.info("connectErrorCount >= 3 skipping connectToN8n");
+                } catch (Exception error) {
+                    logger.warn("Could not request cTrader reconnect through n8n", error);
                 }
-            } else {
-                connectErrorCount = 0;
             }
         }, 2, 20, TimeUnit.SECONDS);
     }
