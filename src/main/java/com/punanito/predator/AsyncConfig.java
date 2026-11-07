@@ -23,6 +23,19 @@ public class AsyncConfig {
         return exec;
     }
 
+    @Bean(name = "n8nTickHistoryExecutor")
+    public Executor n8nTickHistoryExecutor() {
+        ThreadPoolTaskExecutor exec = new ThreadPoolTaskExecutor();
+        exec.setCorePoolSize(4);
+        exec.setMaxPoolSize(20);
+        exec.setQueueCapacity(1000);
+        exec.setThreadNamePrefix("n8n-tick-history-worker-");
+        exec.setWaitForTasksToCompleteOnShutdown(true);
+        exec.setAwaitTerminationSeconds(30);
+        exec.initialize();
+        return exec;
+    }
+
     @Bean(name = "n8nOrderExecutor")
     public Executor n8nOrderExecutor() {
         ThreadPoolTaskExecutor exec = new ThreadPoolTaskExecutor();

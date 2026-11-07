@@ -93,8 +93,8 @@ public class CTraderWebSocketClient {
         symbolById.clear();
         symbolDigits.clear();
         lastPosition.set(0);
-//        String ctraderUrl = "wss://demo.ctraderapi.com:5035";
-        String ctraderUrl = "wss://live.ctraderapi.com:5035";
+        String ctraderUrl = "wss://demo.ctraderapi.com:5035";
+//        String ctraderUrl = "wss://live.ctraderapi.com:5035";
         logger.info("Connecting to ctraderapi.com {}", ctraderUrl);
 
         HttpClient.newHttpClient()
@@ -305,6 +305,19 @@ public class CTraderWebSocketClient {
 //            throw e;
 //        }
 //    }
+
+    public void sendGetTickHisty(String symbolName,long from, long to){
+        long symbolId = findSymbolByName(symbolName);
+
+        ProtoOAGetTickDataReq req = ProtoOAGetTickDataReq.newBuilder()
+                .setCtidTraderAccountId(choosedAccountId)
+                .setSymbolId(symbolId)
+                .setFromTimestamp(from)
+                .setToTimestamp(to)
+                .build();
+
+        send(req, ProtoOAPayloadType.PROTO_OA_GET_TICKDATA_REQ_VALUE);
+    }
 
     public void sendOrder(String operation, String message, long tp, long sl, String symbolName, long accountId, long volume) {
       if (!accountIdList.contains(accountId)) {
@@ -614,7 +627,7 @@ public class CTraderWebSocketClient {
 
 //                    if(!acc.getIsLive() && acc.getBrokerTitleShort().equals("Pepperstone - Europe")) {
 //                    logger.info("Wybrano konto demo: " + choosedAccountId);
-                    if(acc.getIsLive() && acc.getBrokerTitleShort().equals("Pepperstone - Europe")) {
+                    if(!acc.getIsLive() && acc.getBrokerTitleShort().equals("Pepperstone - Europe")) {
                         choosedAccountId =  acc.getCtidTraderAccountId();
                         logger.info("Wybrano konto: " + choosedAccountId);
                     }
@@ -746,11 +759,28 @@ public class CTraderWebSocketClient {
                             handleJavaScalperV2(lastBid,lastAsk, symbolName, event.getSymbolId(), lastTickTime);
                             handleJavaScalperV3(lastBid,lastAsk, symbolName, event.getSymbolId(), lastTickTime);
                         } else {
-                            logger.debug("Scalper is disabled");
+                            logger.trace("Scalper is disabled");
                         }
 
                     }
                 }
+            }
+
+            case ProtoOAPayloadType.PROTO_OA_GET_TICKDATA_RES_VALUE:{
+                ProtoOAGetTickDataRes event = null;
+                try {
+                    event = ProtoOAGetTickDataRes.parseFrom(message.getPayload());
+                    logger.info("Received PROTO_OA_GET_TICKDATA_RES_VALUE");
+//                    Set<ProtoOATickData> tickdataSet = event.getTickDataList().stream()
+//                            .collect(Collectors.toSet());
+//
+//                    event.getTickDataList().forEach(tickData -> {
+//                        n8nService.sendTickHistoryToN8n(tickData.getBid(), tickData.getAsk(), tickData.getSymbolName(), tickData.getSymbolId());
+//                    })
+                } catch (InvalidProtocolBufferException e) {
+                    logger.error("Failed to parse PROTO_OA_GET_TICKDATA_RES_VALUE", e);
+                }
+                break;
             }
 
             case ProtoOAPayloadType.PROTO_OA_EXECUTION_EVENT_VALUE: {

@@ -93,6 +93,31 @@ public class N8nService {
 
     }
 
+    @Async("n8nTickHistoryExecutor")
+    public void sendTickHistoryToN8n(long lastBid, long lastAsk, String symbolName, Integer symbolId) {
+        if(symbolId == null) {
+            logger.warn("symbolId is null ");
+            return;
+        }
+
+        String url = n8nWebhookTicksUrl;
+        PriceRequest request = new PriceRequest(new BigDecimal(lastBid), new BigDecimal(lastAsk),symbolId, symbolName);
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+
+        HttpEntity<PriceRequest> entity = new HttpEntity<>(request, headers);
+
+        ResponseEntity<String> response = restTemplate.postForEntity(url, entity, String.class);
+
+        if (response.getBody().contains("Workflow was started")) {
+            // skip to save memory
+        } else {
+            logger.warn(response.getBody());
+        }
+
+    }
+
     private void sendAccountBalanceToN8n(double accountBalance) {
         logger.info("Sending account balance to n8n n8nWebhookAccountBalanceUrl: " + n8nWebhookAccountBalanceUrl);
 
